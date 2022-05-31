@@ -13,7 +13,7 @@ library("glue")
 
 wkdir = "~/Desktop/GitHub/Obesity/FCC"
 setwd(wkdir)
-savedir = "~/Desktop/GitHub/Obesity/FCC/OutputFigures"
+savedir = "~/Desktop/GitHub/Obesity/FCC/Output_Figures"
 
 source("~/Desktop/Obesity/OLD/FromKate/FD_functions.R")
 ```
@@ -45,7 +45,7 @@ print(FCC_align)
 ggsave("FCC_align.png", FCC_align, path = savedir)
 ```
 
-Coverage plots
+Loading in coverage files
 ```{r}
 FCC = read.csv("H9N2.coverage.csv", header = TRUE, sep = ",")
 
@@ -54,8 +54,41 @@ SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2
 FCC$segment = factor(FCC$segment, levels = SEGMENTS)
 ```
 
+Making coverage plots
 ```{r}
 Covplot(FCC, savedir, 100,50,"FCC")
 Logcovplot(FCC, savedir, 100,50,"FCC")
 ```
 
+Loading in variant files & metadata
+```{r}
+seg_sizes = 'SegmentSize.csv'
+metafile = 'ReSeq_Metadata.csv'
+varfile = 'H9N2.VariantsOnly.0.01.200.csv'
+
+# read and rearrange the data
+sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
+meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
+vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
+vars$name = vars$sample
+```
+
+Specifying thresholds and plotting variables
+```{r}
+diet = c("Obese","Lean","Stock")
+dietColors = c("#FF9933","#66CCFF","#606060")
+names(dietColors) = diet
+DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
+DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
+
+cov_cutoff = 100
+freq_cut = 0.02
+pvalcut  = 0.05
+
+ntlist = c("A","C","G","T")
+SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
+```
+
+```{r}
+
+```
