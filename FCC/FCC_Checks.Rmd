@@ -1,0 +1,60 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Load libraries
+```{r}
+library("tidyr")
+library("plyr")
+library('ggplot2')
+library('dplyr')
+library("glue")
+
+wkdir = "~/Desktop/Obesity/FCC"
+setwd(wkdir)
+
+source("~/Desktop/Obesity/OLD/FromKate/FD_functions.R")
+```
+
+FCC alignment dataframe set up
+```{r}
+flu_align = read.csv("flu.alignment.csv", header = TRUE, sep = ",")
+
+flu_align = separate(flu_align, Sample, into = c("FerretID","DPI","Rep"))
+flu_align$Sample = paste0(flu_align$FerretID,"_",flu_align$DPI,"_",flu_align$Rep)
+flu_align$FerretID_DPI = paste0(flu_align$FerretID,"_",flu_align$DPI)
+
+flu_align1 = filter(flu_align, Rep == "rep1")
+flu_align2 = filter(flu_align, Rep == "rep2")
+
+flu_align = merge(flu_align1, flu_align2, by = c("FerretID","DPI","FerretID_DPI"))
+
+flu_align$TotalReads.avg = ((flu_align$TotalReads.x + flu_align$TotalReads.y) / 2)
+```
+
+FCC alignment plot
+```{r}
+FCC_align = ggplot(flu_align, aes(x = FerretID_DPI, y = log10(TotalReads.avg))) +
+  geom_point() + 
+  ylim(0,6) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  PlotTheme1
+print(FCC_align)
+ggsave("FCC_align.png", FCC_align)
+```
+
+Coverage plots
+```{r}
+FCC = read.csv("H9N2.coverage.csv", header = TRUE, sep = ",")
+
+sizes = read.csv("~/Desktop/Obesity/OLD/STAR/AllH9N2_Data/Updated/SegmentSize.csv")
+SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
+FCC$segment = factor(FCC$segment, levels = SEGMENTS)
+```
+
+```{r}
+Covplot(FCC, wkdir, 100,50,"FCC")
+Logcovplot(FCC, wkdir, 100,50,"FCC")
+```
+

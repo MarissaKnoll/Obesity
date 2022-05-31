@@ -1,0 +1,44 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library('dplyr')
+library("ggplot2")
+```
+
+Load Data
+```{r}
+wkdir = "~/Desktop/Obesity"
+setwd(wkdir)
+
+df = read.csv("NewH9N2Seq.csv", header = TRUE, sep = ",")
+df$Ferret_Time = paste0(df$Ferret.ID,"_",df$Timepoint)
+df$M.gene.Ct = as.numeric(df$M.gene.Ct)
+df$Timepoint = factor(df$Timepoint, levels = c("2dpi","4dpi","6dpi","8dpi","10dpi","12dpi"))
+```
+
+```{r}
+x = ggplot(df, aes(x = Ferret_Time, y = M.gene.Ct, color = Good.Gel)) +
+  geom_point() +
+  #facet_grid(~Diet)
+  #facet_grid(~Role)
+  PlotTheme1
+ggsave("CT_ferret.png", x, height = 5, width = 7.5)
+```
+
+```{r}
+ggplot(df, aes(x = Timepoint, y = M.gene.Ct)) +
+  geom_point()
+```
+
+```{r}
+diets = read.csv("Diets.csv", header = TRUE, sep = ",")
+
+```
+
+```{r}
+flu_align = read.csv("flu.alignment.csv", header = TRUE, sep = ",")
+flu_align$TotalReads = as.numeric(flu_align$TotalReads)
+```
