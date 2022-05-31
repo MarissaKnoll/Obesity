@@ -11,8 +11,9 @@ library('ggplot2')
 library('dplyr')
 library("glue")
 
-wkdir = "~/Desktop/Obesity/FCC"
+wkdir = "~/Desktop/GitHub/Obesity/FCC"
 setwd(wkdir)
+savedir = "~/Desktop/GitHub/Obesity/FCC/OutputFigures"
 
 source("~/Desktop/Obesity/OLD/FromKate/FD_functions.R")
 ```
@@ -41,7 +42,7 @@ FCC_align = ggplot(flu_align, aes(x = FerretID_DPI, y = log10(TotalReads.avg))) 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   PlotTheme1
 print(FCC_align)
-ggsave("FCC_align.png", FCC_align)
+ggsave("FCC_align.png", FCC_align, path = savedir)
 ```
 
 Coverage plots
@@ -54,7 +55,7 @@ FCC$segment = factor(FCC$segment, levels = SEGMENTS)
 ```
 
 ```{r}
-Covplot(FCC, wkdir, 100,50,"FCC")
-Logcovplot(FCC, wkdir, 100,50,"FCC")
+Covplot(FCC, savedir, 100,50,"FCC")
+Logcovplot(FCC, savedir, 100,50,"FCC")
 ```
 
