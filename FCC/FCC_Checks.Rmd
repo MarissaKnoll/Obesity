@@ -18,6 +18,24 @@ savedir = "~/Desktop/GitHub/Obesity/FCC/Output_Figures"
 source("~/Desktop/Obesity/OLD/FromKate/FD_functions.R")
 ```
 
+Specifying thresholds and plotting variables
+```{r}
+diet = c("Obese","Lean","Control")
+dietColors = c("#FF9933","#66CCFF","#606060")
+names(dietColors) = diet
+DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
+DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
+
+cov_cut = 200
+freq_cut = 0.02
+pvalcut  = 0.05
+
+ntlist = c("A","C","G","T")
+SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
+```
+
+# Pre-Sequencing Analysis
+
 FCC alignment dataframe set up
 ```{r}
 flu_align = read.csv("flu.alignment.csv", header = TRUE, sep = ",")
@@ -44,6 +62,7 @@ FCC_align = ggplot(flu_align, aes(x = FerretID_DPI, y = log10(TotalReads.avg))) 
 print(FCC_align)
 ggsave("FCC_align.png", FCC_align, path = savedir)
 ```
+# Sequencing Analysis
 
 Loading in coverage file & segment size information
 ```{r}
@@ -53,13 +72,11 @@ seg_sizes = "SegmentSize.csv"
 sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
 GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
 
-SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
 cov$segment = factor(cov$segment, levels = SEGMENTS)
 ```
 
 Checking if data passes thresholds & make coverage plots
 ```{r}
-cov_cut = 200
 cov_check = CoverageAcross(cov,cov_cut,80,sizes, wkdir)
 ```
 
@@ -67,7 +84,6 @@ Loading in variant files & metadata
 ```{r}
 varfile = "H9N2.VariantsOnly.0.01.200.csv"
 metafile = "FCC_Metadata.csv"
-
 
 # read and rearrange the data
 vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
@@ -78,20 +94,6 @@ meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"))
 
 meta$titer = as.numeric(meta$titer)
 meta$Ct_Mgene = as.numeric(meta$Ct_Mgene)
-```
-
-Specifying thresholds and plotting variables
-```{r}
-diet = c("Obese","Lean","Control")
-dietColors = c("#FF9933","#66CCFF","#606060")
-names(dietColors) = diet
-DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
-DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
-
-freq_cut = 0.02
-pvalcut  = 0.05
-
-ntlist = c("A","C","G","T")
 ```
 
 Rearranging variant dataframe
@@ -203,7 +205,7 @@ ggsave(ShannonPlot, file = "MeanShanPerSite.pdf", path = savedir)
 
 ShannonPlot2 = ggplot(shan_segkb_avg, aes(x=DPI, fill = diet)) +
   geom_col(aes(y = avgShan, group = diet), position = "dodge") + # plots average
-  geom_point(aes(y = shannon_perkb, group = diet)) + # plots value for each segment, sample
+  #geom_point(aes(y = shannon_perkb, group = diet)) + # plots value for each segment, sample
   #geom_errorbar(aes(ymin = avgShan - sdShan,
   #                  ymax = avgShan + sdShan)) +
   ylab("Average Shannon entropy per kB across segments") +
@@ -230,6 +232,13 @@ ggplot(varcount, aes(x = snv_count, y = Ct_Mgene, color = diet)) +
   PlotTheme1
 ```
 
+SNV location plots
 ```{r}
-
+SNVLocation = ggplot(minorvdf, aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet, shape = cohort)) +
+  facet_grid(inf_route~segment) +
+  PlotTheme1 +
+  DietcolScale
+print(SNVLocation)
+ggsave(SNVLocation, file = "SNVLocation.pdf", path = savedir)
 ```

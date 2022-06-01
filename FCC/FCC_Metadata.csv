@@ -13,3 +13,4 @@ NA,PCR,Neg,PCR_Neg,Control,Control,NA,NA,bad
 NA,SynRNA,10,SynRNA_10,Control,Control,NA,NA,good
 NA,SynRNA,2.5,SynRNA_2.5,Control,Control,NA,NA,good
 NA,Seq,Neg,Seq_Neg,Control,Control,NA,NA,bad
+Sp19,HK1073,Stock,Sp19_HK1073_Stock,Control,Control,NA,NA,NA
