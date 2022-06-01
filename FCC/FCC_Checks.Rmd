@@ -45,12 +45,13 @@ print(FCC_align)
 ggsave("FCC_align.png", FCC_align, path = savedir)
 ```
 
-Loading in coverage files
+Loading in coverage file & segment size information
 ```{r}
 cov = read.csv("H9N2.coverage.csv", header = TRUE, sep = ",")
 
 seg_sizes = "SegmentSize.csv"
 sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
+GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
 
 SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
 cov$segment = factor(cov$segment, levels = SEGMENTS)
@@ -58,8 +59,8 @@ cov$segment = factor(cov$segment, levels = SEGMENTS)
 
 Checking if data passes thresholds & make coverage plots
 ```{r}
-cov_cutoff = 200
-cov_check = CoverageAcross(cov,cov_cutoff,80,sizes, wkdir)
+cov_cut = 200
+cov_check = CoverageAcross(cov,cov_cut,80,sizes, wkdir)
 ```
 
 Loading in variant files & metadata
@@ -74,6 +75,9 @@ vars$name = vars$sample
 
 meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
 meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"))
+
+meta$titer = as.numeric(meta$titer)
+meta$Ct_Mgene = as.numeric(meta$Ct_Mgene)
 ```
 
 Specifying thresholds and plotting variables
@@ -88,7 +92,6 @@ freq_cut = 0.02
 pvalcut  = 0.05
 
 ntlist = c("A","C","G","T")
-SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
 ```
 
 Rearranging variant dataframe
@@ -98,7 +101,135 @@ vdf = ArrangeVarWRep(vars)
 
 Filtering variant df by metadata
 ```{r}
-vdf = merge(vdf,meta, by = c("sample"))
+vdf = merge(vdf,meta, by = c("sample","segment"))
 vdf = filter(vdf, quality == "good")
 vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+vdf$segment = factor(vdf$segment, levels = SEGMENTS)
+```
+
+Tallying number of ferrets with variants
+```{r}
+fercount = select(vdf, ferretID,DPI,diet,inf_route,cohort)
+fercount = fercount[!duplicated(fercount), ]  %>% 
+  unique() %>% 
+  group_by(DPI, diet, inf_route, cohort) %>% 
+  tally()
+```
+
+Plotting ferret tally
+```{r}
+ggplot(fercount, aes(x = DPI, y = n, fill = diet)) +
+  geom_col(position = "stack") +
+  facet_grid(~inf_route) +
+  ylab("Number of Ferrets with SNVs") +
+  PlotTheme1 +
+  DietcolScale_fill
+```
+
+Removing SNVs under frequency and coverage cutoffs
+```{r}
+minorvdf = filter(vdf, minorfreq >= freq_cut & totalcount >= cov_cut & minor %in% ntlist) %>% 
+            droplevels()
+minorvdf = minorvdf[!duplicated(minorvdf), ] %>% droplevels()
+```
+
+Tallying SNVs
+```{r}
+# can make these groupings whatever you want
+
+# count the number of SNVs per sample
+group_list_seg = c('ferretID','segment',"DPI","diet","inf_route","cohort") # counts across each segment 
+group_list_gen = c('ferretID',"DPI","diet","inf_route","cohort") # Counts across entire genome
+
+seg_count = TallyIt(minorvdf, group_list_seg, "snv_count")
+gen_count = TallyIt(minorvdf, group_list_gen, "snv_count") 
+
+# Average Number of Variants per Sample
+gen_count_avg = group_by(gen_count, DPI, diet, inf_route) %>%
+  mutate(avgSNV = mean(snv_count), sdSNV = sd(snv_count))
+```
+
+Calculating Shannon Entropy
+```{r}
+minorvdf = ShannonPos(minorvdf)
+minorvdf$SegmentSize = as.numeric(minorvdf$SegmentSize)
+minorvdf$shannon_perkb = (minorvdf$segment_shan/(minorvdf$SegmentSize/1000))
+minorvdf$normalized_shannon = (minorvdf$shannon/GenomeSize)
+
+# shannon_ntpos = shannon entropy at that nt pos - should always be between 0 and 1 for each sample
+# segment_shan = sum of all nt_pos per segment for each sample
+# shannon = sum of all segment_shan across genome for each sample
+# shannon_perkb = segment shannon per kb (segment specific) for ach sample
+# normalized_shannon = shannon divided by genome size (can make per kb by dividing by 1000) for each sample
+
+# Average Shannon Entropy per Site per Sample (using normalized_shannon)
+shan_g = select(minorvdf, ferretID, DPI, diet, inf_route, normalized_shannon) 
+shan_g = shan_g[!duplicated(shan_g),]
+shan_g_avg = group_by(shan_g, DPI, diet, inf_route) %>% 
+  mutate(avgShan = mean(normalized_shannon), sdShan = sd(normalized_shannon))
+
+shan_segkb = select(minorvdf, ferretID, DPI, diet, inf_route, segment, shannon_perkb)
+shan_segkb = shan_segkb[!duplicated(shan_segkb),]
+shan_segkb_avg = group_by(shan_segkb, DPI, diet, inf_route, segment) %>% 
+  mutate(avgShan = mean(shannon_perkb), sdShan = sd(shannon_perkb))
+```
+
+Making plots for variant tallies and Shannon entropy 
+```{r}
+VarPlot = ggplot(gen_count_avg, aes(x=DPI, fill = diet)) +
+  geom_col(aes(y = avgSNV, group = diet), position = "dodge") +
+  geom_jitter(aes(group = diet, y = snv_count), width  = 0.15) +
+  geom_errorbar(aes(ymin = avgSNV - sdSNV,
+                    ymax = avgSNV + sdSNV)) +
+  ylab("Average number of SNVs per sample") +
+  facet_grid(~inf_route+diet) +
+  PlotTheme1 +
+  DietcolScale_fill
+print(VarPlot)
+ggsave(VarPlot, file = "VariantCount.pdf", path = savedir)
+
+ShannonPlot = ggplot(shan_g_avg, aes(x=DPI, fill = diet)) +
+  geom_col(aes(y = avgShan, group = diet), position = "dodge") + #plots average
+  geom_jitter(aes(y = normalized_shannon, group = diet), width  = 0.15) + #plots value for each sample
+  geom_errorbar(aes(ymin = avgShan - sdShan,
+                    ymax = avgShan + sdShan)) +
+  ylab("Average Shannon entropy per site across genome") +
+  facet_grid(~inf_route+diet) +
+  PlotTheme1 +
+  DietcolScale_fill
+print(ShannonPlot)
+ggsave(ShannonPlot, file = "MeanShanPerSite.pdf", path = savedir)
+
+ShannonPlot2 = ggplot(shan_segkb_avg, aes(x=DPI, fill = diet)) +
+  geom_col(aes(y = avgShan, group = diet), position = "dodge") + # plots average
+  geom_point(aes(y = shannon_perkb, group = diet)) + # plots value for each segment, sample
+  #geom_errorbar(aes(ymin = avgShan - sdShan,
+  #                  ymax = avgShan + sdShan)) +
+  ylab("Average Shannon entropy per kB across segments") +
+  facet_grid(~segment) +
+  PlotTheme1 +
+  DietcolScale_fill
+print(ShannonPlot2)
+ggsave(ShannonPlot2, file = "MeanShanPerSegKB.pdf", path = savedir)
+```
+
+Do the number of variants correlate with titer or Ct?
+```{r}
+meta_small = select(meta,"ferretID","DPI","diet","inf_route","cohort", "titer","Ct_Mgene","avg_coverage")
+varcount = merge(gen_count_avg, meta_small, by = c("ferretID","DPI","diet","inf_route","cohort"))
+
+ggplot(varcount, aes(x = snv_count, y = log10(titer), color = diet)) +
+  geom_point() +
+  ylim(0,8) +
+  PlotTheme1
+
+ggplot(varcount, aes(x = snv_count, y = Ct_Mgene, color = diet)) +
+  geom_point() +
+  ylim(0,30) +
+  PlotTheme1
+```
+
+```{r}
+
 ```
