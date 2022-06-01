@@ -71,7 +71,9 @@ metafile = "FCC_Metadata.csv"
 # read and rearrange the data
 vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
 vars$name = vars$sample
+
 meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
+meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"))
 ```
 
 Specifying thresholds and plotting variables
@@ -92,5 +94,11 @@ SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2
 Rearranging variant dataframe
 ```{r}
 vdf = ArrangeVarWRep(vars)
+```
+
+Filtering variant df by metadata
+```{r}
 vdf = merge(vdf,meta, by = c("sample"))
+vdf = filter(vdf, quality == "good")
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
 ```

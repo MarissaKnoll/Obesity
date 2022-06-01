@@ -218,41 +218,14 @@ pre code {
 <p>Load libraries</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShcInRpZHlyXCIpXG5gYGAifQ== -->
-<pre class="r"><code>library(&quot;tidyr&quot;)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoicGFja2FnZSDigJh0aWR5cuKAmSB3YXMgYnVpbHQgdW5kZXIgUiB2ZXJzaW9uIDQuMC41XG4ifQ== -->
-<pre><code>package ‘tidyr’ was built under R version 4.0.5</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShcInBseXJcIilcbmxpYnJhcnkoJ2dncGxvdDInKVxubGlicmFyeSgnZHBseXInKVxuYGBgIn0= -->
-<pre class="r"><code>library(&quot;plyr&quot;)
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShcInRpZHlyXCIpXG5saWJyYXJ5KFwicGx5clwiKVxubGlicmFyeSgnZ2dwbG90MicpXG5saWJyYXJ5KCdkcGx5cicpXG5saWJyYXJ5KFwiZ2x1ZVwiKVxuXG53a2RpciA9IFwifi9EZXNrdG9wL0dpdEh1Yi9PYmVzaXR5L0ZDQ1wiXG5zZXR3ZCh3a2RpcilcbnNhdmVkaXIgPSBcIn4vRGVza3RvcC9HaXRIdWIvT2Jlc2l0eS9GQ0MvT3V0cHV0X0ZpZ3VyZXNcIlxuXG5zb3VyY2UoXCJ+L0Rlc2t0b3AvT2Jlc2l0eS9PTEQvRnJvbUthdGUvRkRfZnVuY3Rpb25zLlJcIilcbmBgYCJ9 -->
+<pre class="r"><code>library(&quot;tidyr&quot;)
+library(&quot;plyr&quot;)
 library(&#39;ggplot2&#39;)
-library(&#39;dplyr&#39;)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoicGFja2FnZSDigJhkcGx5cuKAmSB3YXMgYnVpbHQgdW5kZXIgUiB2ZXJzaW9uIDQuMC41XG5BdHRhY2hpbmcgcGFja2FnZTog4oCYZHBseXLigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOnBseXLigJk6XG5cbiAgICBhcnJhbmdlLCBjb3VudCwgZGVzYywgZmFpbHdpdGgsIGlkLCBtdXRhdGUsIHJlbmFtZSwgc3VtbWFyaXNlLCBzdW1tYXJpemVcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOnN0YXRz4oCZOlxuXG4gICAgZmlsdGVyLCBsYWdcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmJhc2XigJk6XG5cbiAgICBpbnRlcnNlY3QsIHNldGRpZmYsIHNldGVxdWFsLCB1bmlvblxuIn0= -->
-<pre><code>package ‘dplyr’ was built under R version 4.0.5
-Attaching package: ‘dplyr’
+library(&#39;dplyr&#39;)
+library(&quot;glue&quot;)
 
-The following objects are masked from ‘package:plyr’:
-
-    arrange, count, desc, failwith, id, mutate, rename, summarise, summarize
-
-The following objects are masked from ‘package:stats’:
-
-    filter, lag
-
-The following objects are masked from ‘package:base’:
-
-    intersect, setdiff, setequal, union</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShcImdsdWVcIilcbmBgYCJ9 -->
-<pre class="r"><code>library(&quot;glue&quot;)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoicGFja2FnZSDigJhnbHVl4oCZIHdhcyBidWlsdCB1bmRlciBSIHZlcnNpb24gNC4wLjVcbiJ9 -->
-<pre><code>package ‘glue’ was built under R version 4.0.5</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxud2tkaXIgPSBcIn4vRGVza3RvcC9HaXRIdWIvT2Jlc2l0eS9GQ0NcIlxuc2V0d2Qod2tkaXIpXG5zYXZlZGlyID0gXCJ+L0Rlc2t0b3AvR2l0SHViL09iZXNpdHkvRkNDL091dHB1dF9GaWd1cmVzXCJcblxuc291cmNlKFwifi9EZXNrdG9wL09iZXNpdHkvT0xEL0Zyb21LYXRlL0ZEX2Z1bmN0aW9ucy5SXCIpXG5gYGAifQ== -->
-<pre class="r"><code>wkdir = &quot;~/Desktop/GitHub/Obesity/FCC&quot;
+wkdir = &quot;~/Desktop/GitHub/Obesity/FCC&quot;
 setwd(wkdir)
 savedir = &quot;~/Desktop/GitHub/Obesity/FCC/Output_Figures&quot;
 
@@ -334,7 +307,7 @@ Percentage covered cutoff is: 80%</code></pre>
 <p>Loading in variant files &amp; metadata</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudmFyZmlsZSA9IFwiSDlOMi5WYXJpYW50c09ubHkuMC4wMS4yMDAuY3N2XCJcbm1ldGFmaWxlID0gXCJGQ0NfTWV0YWRhdGEuY3N2XCJcblxuXG4jIHJlYWQgYW5kIHJlYXJyYW5nZSB0aGUgZGF0YVxudmFycyA9IHJlYWQuY3N2KGZpbGU9dmFyZmlsZSxoZWFkZXI9VCxzZXA9XCIsXCIsbmEuc3RyaW5ncyA9IGMoJycpKVxudmFycyRuYW1lID0gdmFycyRzYW1wbGVcbm1ldGEgPSByZWFkLmNzdihmaWxlPW1ldGFmaWxlLGhlYWRlcj1ULHNlcD1cIixcIixuYS5zdHJpbmdzID0gYygnJykpXG5gYGAifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudmFyZmlsZSA9IFwiSDlOMi5WYXJpYW50c09ubHkuMC4wMS4yMDAuY3N2XCJcbm1ldGFmaWxlID0gXCJGQ0NfTWV0YWRhdGEuY3N2XCJcblxuXG4jIHJlYWQgYW5kIHJlYXJyYW5nZSB0aGUgZGF0YVxudmFycyA9IHJlYWQuY3N2KGZpbGU9dmFyZmlsZSxoZWFkZXI9VCxzZXA9XCIsXCIsbmEuc3RyaW5ncyA9IGMoJycpKVxudmFycyRuYW1lID0gdmFycyRzYW1wbGVcblxubWV0YSA9IHJlYWQuY3N2KGZpbGU9bWV0YWZpbGUsaGVhZGVyPVQsc2VwPVwiLFwiLG5hLnN0cmluZ3MgPSBjKCcnKSlcbm1ldGEgPSBtZXJnZShtZXRhLCBjb3ZfY2hlY2ssIGJ5LnggPSBjKFwic2FtcGxlXCIpLCBieS55ID0gYyhcIm5hbWVcIikpXG5gYGAifQ== -->
 <pre class="r"><code>varfile = &quot;H9N2.VariantsOnly.0.01.200.csv&quot;
 metafile = &quot;FCC_Metadata.csv&quot;
 
@@ -342,7 +315,9 @@ metafile = &quot;FCC_Metadata.csv&quot;
 # read and rearrange the data
 vars = read.csv(file=varfile,header=T,sep=&quot;,&quot;,na.strings = c(&#39;&#39;))
 vars$name = vars$sample
-meta = read.csv(file=metafile,header=T,sep=&quot;,&quot;,na.strings = c(&#39;&#39;))</code></pre>
+
+meta = read.csv(file=metafile,header=T,sep=&quot;,&quot;,na.strings = c(&#39;&#39;))
+meta = merge(meta, cov_check, by.x = c(&quot;sample&quot;), by.y = c(&quot;name&quot;))</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
@@ -367,13 +342,25 @@ SEGMENTS = c(&#39;H9N2_PB2&#39;,&#39;H9N2_PB1&#39;,&#39;H9N2_PA&#39;,&#39;H9N2_H
 <p>Rearranging variant dataframe</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudmRmID0gQXJyYW5nZVZhcldSZXAodmFycylcbnZkZiA9IG1lcmdlKHZkZixtZXRhLCBieSA9IGMoXCJzYW1wbGVcIikpXG5gYGAifQ== -->
-<pre class="r"><code>vdf = ArrangeVarWRep(vars)
-vdf = merge(vdf,meta, by = c(&quot;sample&quot;))</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudmRmID0gQXJyYW5nZVZhcldSZXAodmFycylcbmBgYCJ9 -->
+<pre class="r"><code>vdf = ArrangeVarWRep(vars)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Filtering variant df by metadata</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudmRmIC0gZmlsdGVyKHZkZiwgcXVhbGl0eSA9PSBcImdvb2RcIilcblxuYGBgIn0= -->
+<pre class="r"><code>vdf - filter(vdf, quality == &quot;good&quot;)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gT3BzLmRhdGEuZnJhbWUodmRmLCBmaWx0ZXIodmRmLCBxdWFsaXR5ID09IFwiZ29vZFwiKSkgOiBcbiAg4oCYLeKAmSBvbmx5IGRlZmluZWQgZm9yIGVxdWFsbHktc2l6ZWQgZGF0YSBmcmFtZXNcbiJ9 -->
+<pre><code>Error in Ops.data.frame(vdf, filter(vdf, quality == &quot;good&quot;)) : 
+  ‘-’ only defined for equally-sized data frames</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKTG9hZCBsaWJyYXJpZXMKYGBge3J9CmxpYnJhcnkoInRpZHlyIikKbGlicmFyeSgicGx5ciIpCmxpYnJhcnkoJ2dncGxvdDInKQpsaWJyYXJ5KCdkcGx5cicpCmxpYnJhcnkoImdsdWUiKQoKd2tkaXIgPSAifi9EZXNrdG9wL0dpdEh1Yi9PYmVzaXR5L0ZDQyIKc2V0d2Qod2tkaXIpCnNhdmVkaXIgPSAifi9EZXNrdG9wL0dpdEh1Yi9PYmVzaXR5L0ZDQy9PdXRwdXRfRmlndXJlcyIKCnNvdXJjZSgifi9EZXNrdG9wL09iZXNpdHkvT0xEL0Zyb21LYXRlL0ZEX2Z1bmN0aW9ucy5SIikKYGBgCgpGQ0MgYWxpZ25tZW50IGRhdGFmcmFtZSBzZXQgdXAKYGBge3J9CmZsdV9hbGlnbiA9IHJlYWQuY3N2KCJmbHUuYWxpZ25tZW50LmNzdiIsIGhlYWRlciA9IFRSVUUsIHNlcCA9ICIsIikKCmZsdV9hbGlnbiA9IHNlcGFyYXRlKGZsdV9hbGlnbiwgU2FtcGxlLCBpbnRvID0gYygiRmVycmV0SUQiLCJEUEkiLCJSZXAiKSkKZmx1X2FsaWduJFNhbXBsZSA9IHBhc3RlMChmbHVfYWxpZ24kRmVycmV0SUQsIl8iLGZsdV9hbGlnbiREUEksIl8iLGZsdV9hbGlnbiRSZXApCmZsdV9hbGlnbiRGZXJyZXRJRF9EUEkgPSBwYXN0ZTAoZmx1X2FsaWduJEZlcnJldElELCJfIixmbHVfYWxpZ24kRFBJKQoKZmx1X2FsaWduMSA9IGZpbHRlcihmbHVfYWxpZ24sIFJlcCA9PSAicmVwMSIpCmZsdV9hbGlnbjIgPSBmaWx0ZXIoZmx1X2FsaWduLCBSZXAgPT0gInJlcDIiKQoKZmx1X2FsaWduID0gbWVyZ2UoZmx1X2FsaWduMSwgZmx1X2FsaWduMiwgYnkgPSBjKCJGZXJyZXRJRCIsIkRQSSIsIkZlcnJldElEX0RQSSIpKQoKZmx1X2FsaWduJFRvdGFsUmVhZHMuYXZnID0gKChmbHVfYWxpZ24kVG90YWxSZWFkcy54ICsgZmx1X2FsaWduJFRvdGFsUmVhZHMueSkgLyAyKQpgYGAKCkZDQyBhbGlnbm1lbnQgcGxvdApgYGB7cn0KRkNDX2FsaWduID0gZ2dwbG90KGZsdV9hbGlnbiwgYWVzKHggPSBGZXJyZXRJRF9EUEksIHkgPSBsb2cxMChUb3RhbFJlYWRzLmF2ZykpKSArCiAgZ2VvbV9wb2ludCgpICsgCiAgeWxpbSgwLDYpICsKICB0aGVtZShheGlzLnRleHQueCA9IGVsZW1lbnRfdGV4dChhbmdsZSA9IDkwLCB2anVzdCA9IDAuNSwgaGp1c3Q9MSkpICsKICBQbG90VGhlbWUxCnByaW50KEZDQ19hbGlnbikKZ2dzYXZlKCJGQ0NfYWxpZ24ucG5nIiwgRkNDX2FsaWduLCBwYXRoID0gc2F2ZWRpcikKYGBgCgpMb2FkaW5nIGluIGNvdmVyYWdlIGZpbGVzCmBgYHtyfQpjb3YgPSByZWFkLmNzdigiSDlOMi5jb3ZlcmFnZS5jc3YiLCBoZWFkZXIgPSBUUlVFLCBzZXAgPSAiLCIpCgpzZWdfc2l6ZXMgPSAiU2VnbWVudFNpemUuY3N2IgpzaXplcyA9IHJlYWQuY3N2KGZpbGU9c2VnX3NpemVzLGhlYWRlcj1ULHNlcD0iLCIsbmEuc3RyaW5ncyA9IGMoJycpKQoKU0VHTUVOVFMgPSBjKCdIOU4yX1BCMicsJ0g5TjJfUEIxJywnSDlOMl9QQScsJ0g5TjJfSEEnLCdIOU4yX05QJywnSDlOMl9OQScsJ0g5TjJfTVAnLCdIOU4yX05TJykKY292JHNlZ21lbnQgPSBmYWN0b3IoY292JHNlZ21lbnQsIGxldmVscyA9IFNFR01FTlRTKQpgYGAKCkNoZWNraW5nIGlmIGRhdGEgcGFzc2VzIHRocmVzaG9sZHMgJiBtYWtlIGNvdmVyYWdlIHBsb3RzCmBgYHtyfQpjb3ZfY3V0b2ZmID0gMjAwCmNvdl9jaGVjayA9IENvdmVyYWdlQWNyb3NzKGNvdixjb3ZfY3V0b2ZmLDgwLHNpemVzLCB3a2RpcikKYGBgCgpMb2FkaW5nIGluIHZhcmlhbnQgZmlsZXMgJiBtZXRhZGF0YQpgYGB7cn0KdmFyZmlsZSA9ICJIOU4yLlZhcmlhbnRzT25seS4wLjAxLjIwMC5jc3YiCm1ldGFmaWxlID0gIkZDQ19NZXRhZGF0YS5jc3YiCgoKIyByZWFkIGFuZCByZWFycmFuZ2UgdGhlIGRhdGEKdmFycyA9IHJlYWQuY3N2KGZpbGU9dmFyZmlsZSxoZWFkZXI9VCxzZXA9IiwiLG5hLnN0cmluZ3MgPSBjKCcnKSkKdmFycyRuYW1lID0gdmFycyRzYW1wbGUKbWV0YSA9IHJlYWQuY3N2KGZpbGU9bWV0YWZpbGUsaGVhZGVyPVQsc2VwPSIsIixuYS5zdHJpbmdzID0gYygnJykpCmBgYAoKU3BlY2lmeWluZyB0aHJlc2hvbGRzIGFuZCBwbG90dGluZyB2YXJpYWJsZXMKYGBge3J9CmRpZXQgPSBjKCJPYmVzZSIsIkxlYW4iLCJDb250cm9sIikKZGlldENvbG9ycyA9IGMoIiNGRjk5MzMiLCIjNjZDQ0ZGIiwiIzYwNjA2MCIpCm5hbWVzKGRpZXRDb2xvcnMpID0gZGlldApEaWV0Y29sU2NhbGVfZmlsbCA8LSBzY2FsZV9maWxsX21hbnVhbChuYW1lID0gImdycCIsdmFsdWVzID0gZGlldENvbG9ycykKRGlldGNvbFNjYWxlIDwtIHNjYWxlX2NvbG91cl9tYW51YWwobmFtZSA9ICJncnAiLHZhbHVlcyA9IGRpZXRDb2xvcnMpCgpmcmVxX2N1dCA9IDAuMDIKcHZhbGN1dCAgPSAwLjA1CgpudGxpc3QgPSBjKCJBIiwiQyIsIkciLCJUIikKU0VHTUVOVFMgPSBjKCdIOU4yX1BCMicsJ0g5TjJfUEIxJywnSDlOMl9QQScsJ0g5TjJfSEEnLCdIOU4yX05QJywnSDlOMl9OQScsJ0g5TjJfTVAnLCdIOU4yX05TJykKYGBgCgpSZWFycmFuZ2luZyB2YXJpYW50IGRhdGFmcmFtZQpgYGB7cn0KdmRmID0gQXJyYW5nZVZhcldSZXAodmFycykKdmRmID0gbWVyZ2UodmRmLG1ldGEsIGJ5ID0gYygic2FtcGxlIikpCmBgYA==</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKTG9hZCBsaWJyYXJpZXMKYGBge3J9CmxpYnJhcnkoInRpZHlyIikKbGlicmFyeSgicGx5ciIpCmxpYnJhcnkoJ2dncGxvdDInKQpsaWJyYXJ5KCdkcGx5cicpCmxpYnJhcnkoImdsdWUiKQoKd2tkaXIgPSAifi9EZXNrdG9wL0dpdEh1Yi9PYmVzaXR5L0ZDQyIKc2V0d2Qod2tkaXIpCnNhdmVkaXIgPSAifi9EZXNrdG9wL0dpdEh1Yi9PYmVzaXR5L0ZDQy9PdXRwdXRfRmlndXJlcyIKCnNvdXJjZSgifi9EZXNrdG9wL09iZXNpdHkvT0xEL0Zyb21LYXRlL0ZEX2Z1bmN0aW9ucy5SIikKYGBgCgpGQ0MgYWxpZ25tZW50IGRhdGFmcmFtZSBzZXQgdXAKYGBge3J9CmZsdV9hbGlnbiA9IHJlYWQuY3N2KCJmbHUuYWxpZ25tZW50LmNzdiIsIGhlYWRlciA9IFRSVUUsIHNlcCA9ICIsIikKCmZsdV9hbGlnbiA9IHNlcGFyYXRlKGZsdV9hbGlnbiwgU2FtcGxlLCBpbnRvID0gYygiRmVycmV0SUQiLCJEUEkiLCJSZXAiKSkKZmx1X2FsaWduJFNhbXBsZSA9IHBhc3RlMChmbHVfYWxpZ24kRmVycmV0SUQsIl8iLGZsdV9hbGlnbiREUEksIl8iLGZsdV9hbGlnbiRSZXApCmZsdV9hbGlnbiRGZXJyZXRJRF9EUEkgPSBwYXN0ZTAoZmx1X2FsaWduJEZlcnJldElELCJfIixmbHVfYWxpZ24kRFBJKQoKZmx1X2FsaWduMSA9IGZpbHRlcihmbHVfYWxpZ24sIFJlcCA9PSAicmVwMSIpCmZsdV9hbGlnbjIgPSBmaWx0ZXIoZmx1X2FsaWduLCBSZXAgPT0gInJlcDIiKQoKZmx1X2FsaWduID0gbWVyZ2UoZmx1X2FsaWduMSwgZmx1X2FsaWduMiwgYnkgPSBjKCJGZXJyZXRJRCIsIkRQSSIsIkZlcnJldElEX0RQSSIpKQoKZmx1X2FsaWduJFRvdGFsUmVhZHMuYXZnID0gKChmbHVfYWxpZ24kVG90YWxSZWFkcy54ICsgZmx1X2FsaWduJFRvdGFsUmVhZHMueSkgLyAyKQpgYGAKCkZDQyBhbGlnbm1lbnQgcGxvdApgYGB7cn0KRkNDX2FsaWduID0gZ2dwbG90KGZsdV9hbGlnbiwgYWVzKHggPSBGZXJyZXRJRF9EUEksIHkgPSBsb2cxMChUb3RhbFJlYWRzLmF2ZykpKSArCiAgZ2VvbV9wb2ludCgpICsgCiAgeWxpbSgwLDYpICsKICB0aGVtZShheGlzLnRleHQueCA9IGVsZW1lbnRfdGV4dChhbmdsZSA9IDkwLCB2anVzdCA9IDAuNSwgaGp1c3Q9MSkpICsKICBQbG90VGhlbWUxCnByaW50KEZDQ19hbGlnbikKZ2dzYXZlKCJGQ0NfYWxpZ24ucG5nIiwgRkNDX2FsaWduLCBwYXRoID0gc2F2ZWRpcikKYGBgCgpMb2FkaW5nIGluIGNvdmVyYWdlIGZpbGVzCmBgYHtyfQpjb3YgPSByZWFkLmNzdigiSDlOMi5jb3ZlcmFnZS5jc3YiLCBoZWFkZXIgPSBUUlVFLCBzZXAgPSAiLCIpCgpzZWdfc2l6ZXMgPSAiU2VnbWVudFNpemUuY3N2IgpzaXplcyA9IHJlYWQuY3N2KGZpbGU9c2VnX3NpemVzLGhlYWRlcj1ULHNlcD0iLCIsbmEuc3RyaW5ncyA9IGMoJycpKQoKU0VHTUVOVFMgPSBjKCdIOU4yX1BCMicsJ0g5TjJfUEIxJywnSDlOMl9QQScsJ0g5TjJfSEEnLCdIOU4yX05QJywnSDlOMl9OQScsJ0g5TjJfTVAnLCdIOU4yX05TJykKY292JHNlZ21lbnQgPSBmYWN0b3IoY292JHNlZ21lbnQsIGxldmVscyA9IFNFR01FTlRTKQpgYGAKCkNoZWNraW5nIGlmIGRhdGEgcGFzc2VzIHRocmVzaG9sZHMgJiBtYWtlIGNvdmVyYWdlIHBsb3RzCmBgYHtyfQpjb3ZfY3V0b2ZmID0gMjAwCmNvdl9jaGVjayA9IENvdmVyYWdlQWNyb3NzKGNvdixjb3ZfY3V0b2ZmLDgwLHNpemVzLCB3a2RpcikKYGBgCgpMb2FkaW5nIGluIHZhcmlhbnQgZmlsZXMgJiBtZXRhZGF0YQpgYGB7cn0KdmFyZmlsZSA9ICJIOU4yLlZhcmlhbnRzT25seS4wLjAxLjIwMC5jc3YiCm1ldGFmaWxlID0gIkZDQ19NZXRhZGF0YS5jc3YiCgoKIyByZWFkIGFuZCByZWFycmFuZ2UgdGhlIGRhdGEKdmFycyA9IHJlYWQuY3N2KGZpbGU9dmFyZmlsZSxoZWFkZXI9VCxzZXA9IiwiLG5hLnN0cmluZ3MgPSBjKCcnKSkKdmFycyRuYW1lID0gdmFycyRzYW1wbGUKCm1ldGEgPSByZWFkLmNzdihmaWxlPW1ldGFmaWxlLGhlYWRlcj1ULHNlcD0iLCIsbmEuc3RyaW5ncyA9IGMoJycpKQptZXRhID0gbWVyZ2UobWV0YSwgY292X2NoZWNrLCBieS54ID0gYygic2FtcGxlIiksIGJ5LnkgPSBjKCJuYW1lIikpCmBgYAoKU3BlY2lmeWluZyB0aHJlc2hvbGRzIGFuZCBwbG90dGluZyB2YXJpYWJsZXMKYGBge3J9CmRpZXQgPSBjKCJPYmVzZSIsIkxlYW4iLCJDb250cm9sIikKZGlldENvbG9ycyA9IGMoIiNGRjk5MzMiLCIjNjZDQ0ZGIiwiIzYwNjA2MCIpCm5hbWVzKGRpZXRDb2xvcnMpID0gZGlldApEaWV0Y29sU2NhbGVfZmlsbCA8LSBzY2FsZV9maWxsX21hbnVhbChuYW1lID0gImdycCIsdmFsdWVzID0gZGlldENvbG9ycykKRGlldGNvbFNjYWxlIDwtIHNjYWxlX2NvbG91cl9tYW51YWwobmFtZSA9ICJncnAiLHZhbHVlcyA9IGRpZXRDb2xvcnMpCgpmcmVxX2N1dCA9IDAuMDIKcHZhbGN1dCAgPSAwLjA1CgpudGxpc3QgPSBjKCJBIiwiQyIsIkciLCJUIikKU0VHTUVOVFMgPSBjKCdIOU4yX1BCMicsJ0g5TjJfUEIxJywnSDlOMl9QQScsJ0g5TjJfSEEnLCdIOU4yX05QJywnSDlOMl9OQScsJ0g5TjJfTVAnLCdIOU4yX05TJykKYGBgCgpSZWFycmFuZ2luZyB2YXJpYW50IGRhdGFmcmFtZQpgYGB7cn0KdmRmID0gQXJyYW5nZVZhcldSZXAodmFycykKYGBgCgpGaWx0ZXJpbmcgdmFyaWFudCBkZiBieSBtZXRhZGF0YQpgYGB7cn0KdmRmID0gbWVyZ2UodmRmLG1ldGEsIGJ5ID0gYygic2FtcGxlIikpCnZkZiA9IGZpbHRlcih2ZGYsIHF1YWxpdHkgPT0gImdvb2QiKQp2ZGYgPSB2ZGZbIWR1cGxpY2F0ZWQodmRmKSwgXSAlPiUgZHJvcGxldmVscygpCmBgYA==</div>
 
 
 
