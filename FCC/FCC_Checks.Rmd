@@ -348,3 +348,10 @@ SharedPlot = ggplot(shared, aes(x = ntpos, y = segment)) +
 print(SharedPlot)
 ggsave(SharedPlot, filename = "SegmentSNVPlot_DietShared.pdf", path = savedir)
 ```
+
+```{r}
+ggplot(ferrets, aes(x = minorfreq)) +
+  geom_histogram(binwidth = 0.01)
+
+highfreq = filter(ferrets, minorfreq > 0.25)
+```
