@@ -1,0 +1,126 @@
+---
+title: "Analysis of Synthetic Sequencing Controls"
+output: html_notebook
+---
+
+Load libraries and functions
+```{r}
+library("tidyr")
+library("plyr")
+library('ggplot2')
+library('dplyr')
+library("glue")
+library("ggVennDiagram")
+
+wkdir = "~/Desktop/GitHub/Obesity/NewExtractions/Controls"
+setwd(wkdir)
+savedir = "~/Desktop/GitHub/Obesity/NewExtractions/Controls/Output_Figures"
+
+source("~/Desktop/Obesity/OLD/FromKate/FD_functions.R")
+```
+
+Loading in coverage file & segment size information
+```{r}
+cov_cut = 200
+freq_cut = 0.02
+pvalcut  = 0.05
+
+ntlist = c("A","C","G","T")
+SEGMENTS = c("SynRNA_WT_PB2","SynRNA_WT_HA","SynRNA_WT_NA")
+
+cov = read.csv("./avg_coverage/H1N1.coverage.csv", header = TRUE, sep = ",")
+
+seg_sizes = "SegmentSize_SynRNA.csv"
+sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
+GenomeSize = (sizes %>% filter(segment == 'H1N1_GENOME'))$SegmentSize
+
+cov$segment = factor(cov$segment, levels = SEGMENTS)
+```
+
+Checking if data passes thresholds & make coverage plots
+```{r}
+cov_check = CoverageAcrossControls(cov,cov_cut,80,sizes, wkdir)
+```
+
+Loading in variant files
+```{r}
+varfile = "./varfiles/H1N1.VariantsOnly.0.01.200.csv"
+#metafile = "FCC_Metadata.csv"
+
+# read and rearrange the data
+vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
+```
+
+Rearranging variant dataframe
+```{r}
+vdf = ArrangeVarWRep(vars)
+vdf$name = vdf$sample
+
+vdf = merge(vdf,cov_check, by = c("name","segment"))
+vdf = filter(vdf, quality == "good")
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+vdf$segment = factor(vdf$segment, levels = SEGMENTS)
+```
+
+Tallying SNVs
+```{r}
+# can make these groupings whatever you want
+
+# count the number of SNVs per sample
+group_list_seg = c('name','segment') # counts across each segment 
+group_list_gen = c('name') # Counts across entire genome
+
+seg_count = TallyIt(vdf, group_list_seg, "snv_count")
+gen_count = TallyIt(vdf, group_list_gen, "snv_count") 
+
+# Average Number of Variants per Sample
+gen_count_avg = group_by(gen_count, DPI, diet, inf_route) %>%
+  mutate(avgSNV = mean(snv_count), sdSNV = sd(snv_count))
+```
+
+Plotting number of variants per sample and per segment
+```{r}
+VarPlot = ggplot(gen_count, aes(x=name)) +
+  geom_col(aes(y = snv_count)) +
+  ylab("Average number of SNVs per sample") +
+  PlotTheme1
+print(VarPlot)
+ggsave(VarPlot, file = "VariantCount.pdf", path = savedir)
+
+VarPlotSeg = ggplot(seg_count, aes(x=name)) +
+  geom_col(aes(y = snv_count, fill = segment)) +
+  ylab("Average number of SNVs per sample") +
+  PlotTheme1
+print(VarPlotSeg)
+ggsave(VarPlot, file = "VariantCountSeg.pdf", path = savedir)
+```
+
+Distirubtion of allele frequencies
+```{r}
+freq_hist = ggplot(vdf, aes(x = minorfreq)) +
+  geom_histogram(binwidth = 0.01) +
+  facet_grid(~segment) +
+  PlotTheme1
+print(freq_hist)
+ggsave(file = "SynRNA_VarFreqs_Hist.pdf", freq_hist, path = savedir)
+
+freq_boxplot = ggplot(vdf, aes(x = name, y = minorfreq)) +
+  geom_boxplot() +
+  geom_hline(yintercept = 0.1, linetype = "dotted", color = "red") +
+  PlotTheme1
+print(freq_boxplot)
+ggsave(file = "SynRNA_VarFreqs_Box.pdf", freq_boxplot, path = savedir)
+
+freq_boxplot_seg = ggplot(vdf, aes(x = segment, y = minorfreq)) +
+  geom_boxplot() +
+  geom_hline(yintercept = 0.1, linetype = "dotted", color = "red") +
+  facet_grid(~name) +
+  PlotTheme1
+print(freq_boxplot_seg)
+ggsave(file = "SynRNA_VarFreqs_SEG__Box.pdf", freq_boxplot_seg, path = savedir)
+```
+Calculating variance in AF estimation
+```{r}
+
+```
