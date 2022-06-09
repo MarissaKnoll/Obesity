@@ -11,9 +11,9 @@ library('dplyr')
 library("glue")
 library("ggVennDiagram")
 
-wkdir = "~/Desktop/GitHub/Obesity/New_Extractions/H9N2"
+wkdir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2"
 setwd(wkdir)
-savedir = "~/Desktop/GitHub/Obesity/New_Extractions/H9N2/Output_Figures"
+savedir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/Output_Figures"
 
 source("~/Desktop/Obesity/OLD/FromKate/FD_functions.R")
 ```
@@ -21,11 +21,6 @@ source("~/Desktop/Obesity/OLD/FromKate/FD_functions.R")
 # Pre Sequence Analysis
 Load Data
 ```{r}
-wkdir = "~/Desktop/GitHub/Obesity/NewExtractions"
-setwd(wkdir)
-
-source("~/Desktop/Obesity/OLD/FromKate/FD_functions.R")
-
 df = read.csv("NewH9N2Seq.csv", header = TRUE, sep = ",")
 df$Ferret_Time = paste0(df$Ferret.ID,"_",df$Timepoint)
 df$M.gene.Ct = as.numeric(df$M.gene.Ct)
@@ -77,7 +72,7 @@ INFECTIONS = c("Index","Direct","Aerosol","Control")
 
 Loading in coverage file & segment size information
 ```{r}
-cov = read.csv("H9N2.coverage.csv", header = TRUE, sep = ",")
+cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
 
 seg_sizes = "SegmentSize.csv"
 sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
@@ -93,8 +88,8 @@ cov_check = CoverageAcross(cov,cov_cut,80,sizes, wkdir)
 
 Loading in variant files & metadata
 ```{r}
-varfile = "H9N2.VariantsOnly.0.01.200.csv"
-metafile = "FCC_Metadata.csv"
+varfile = "./varfiles/H9N2.VariantsOnly.0.01.200.csv"
+metafile = "NEW_Metadata.csv"
 
 # read and rearrange the data
 vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
@@ -103,7 +98,6 @@ vars$name = vars$sample
 meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
 meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"))
 
-meta$titer = as.numeric(meta$titer)
 meta$Ct_Mgene = as.numeric(meta$Ct_Mgene)
 ```
 
@@ -146,8 +140,6 @@ Removing SNVs under frequency and coverage cutoffs
 minorvdf = filter(vdf, minorfreq >= freq_cut & totalcount >= cov_cut & minor %in% ntlist) %>% 
             droplevels()
 minorvdf = minorvdf[!duplicated(minorvdf), ] %>% droplevels()
-
-# doesn't remove any SNVs here in this case
 ```
 
 Tallying SNVs

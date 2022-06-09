@@ -119,6 +119,14 @@ freq_boxplot_seg = ggplot(vdf, aes(x = segment, y = minorfreq)) +
   PlotTheme1
 print(freq_boxplot_seg)
 ggsave(file = "SynRNA_VarFreqs_SEG__Box.pdf", freq_boxplot_seg, path = savedir)
+
+freq_boxplot_seg2 = ggplot(vdf, aes(x = sample, y = minorfreq)) +
+  geom_boxplot() +
+  geom_hline(yintercept = 0.1, linetype = "dotted", color = "red") +
+  facet_grid(~segment) +
+  PlotTheme1
+print(freq_boxplot_seg2)
+ggsave(file = "SynRNA_VarFreqs_SEG2__Box.pdf", freq_boxplot_seg2, path = savedir)
 ```
 Calculating variance in AF estimation
 ```{r}
