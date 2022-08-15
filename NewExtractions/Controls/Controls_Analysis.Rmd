@@ -75,7 +75,7 @@ seg_count = TallyIt(vdf, group_list_seg, "snv_count")
 gen_count = TallyIt(vdf, group_list_gen, "snv_count") 
 
 # Average Number of Variants per Sample
-gen_count_avg = group_by(gen_count, DPI, diet, inf_route) %>%
+gen_count_avg = group_by(gen_count) %>%
   mutate(avgSNV = mean(snv_count), sdSNV = sd(snv_count))
 ```
 
