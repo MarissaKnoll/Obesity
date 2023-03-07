@@ -163,8 +163,8 @@ distvars = distvars[!duplicated(distvars), ] %>% filter(sample %in% good_names)
 ```
 
 ```{r}
-gd2 = select(distvars,sample,segment,ntpos,nt,freq) %>% filter(sample %in% good_names) #MARISSA CHECK THIS - WHY DON'T THE GOOD NAMES MATCH
-gd2$sample = paste0('f', gd2$sample)
+gd2 = select(distvars,sample,segment,ntpos,nt,freq) %>% filter(sample %in% good_names) 
+#MARISSA CHECK THIS - WHY DON'T THE GOOD NAMES MATCH
 
 gd2 = gd2 %>% filter(nt != "-") %>%
   group_by(sample, segment) %>%
@@ -176,7 +176,7 @@ gd2 = gd2[!duplicated(gd2),] %>% droplevels() # remove any dups
 gd2$positions = paste0(gd2$segment,'_', gd2$ntpos)
 positions = c(levels(factor(gd2$positions)))
 
-gd2 = filter(gd2, sample != "f1415_d02")
+gd2 = filter(gd2, sample != "1415_d02")
 ```
 
 ```{r}
@@ -189,7 +189,8 @@ gd2 = gd2 %>% group_by(sample) %>%
 mutate(sample_count = n()) %>%
 ungroup() %>% filter(sample_count == 686) %>% unique()
 
-gd2 %>% select(sample_count,sample) %>% unique() %>% group_by(sample_count) %>% tally() # trying to determine positions that passed cutoff -> figure out why this isn't all of them (eventually)
+gd2 %>% select(sample_count,sample) %>% unique() %>% group_by(sample_count) %>% tally() 
+# trying to determine positions that passed cutoff -> figure out why this isn't all of them (eventually)
 # Kate thinks it is python code in generating .csv, specifically the totalcount (major cutoff) not passing a threshold
 
 set1 = unique(factor(gd2$sample)) #check to make sure everything is the same size throughout
@@ -268,7 +269,7 @@ for (i in c(levels(factor(temp$positions)))){
 mfit <- cmdscale(as.dist(man), eig=TRUE, k=2)
 mfit2 = as.data.frame(mfit$points)
 mfit2$name = rownames(man)
-mfit2 = merge(mfit2, meta, by = c('name')) 
+mfit2 = merge(mfit2, meta, by.x = c('name'), by.y = c('sample')) 
 
 ggplot() +
     geom_point(data = mfit2, aes(x=V1, y= V2,shape = diet, color =inf_route), size = 2) +
@@ -283,51 +284,58 @@ ggplot() +
 efit <- cmdscale(as.dist(euc), eig=TRUE, k=2)
 efit2 = as.data.frame(efit$points)
 efit2$name = rownames(euc)
-efit2 = merge(efit2, meta, by = c('name')) 
+efit2 = merge(efit2, meta, by.x = c('name'), by.y = c('sample')) 
 
+interesting = c("1414_d06","Sp20_HK1073","Sp19_HK1073","Sm18_HK1073","F17_HK1073")
+  
 ggplot() +
-    geom_point(data = efit2, aes(x=V1, y= V2,shape = diet, color =inf_route), size = 2) +
-    geom_text(data = efit2 %>% filter(diet == 'Control'), 
-                aes(x=V1, y= V2,label = name), 
-       hjust=0, vjust=0, angle=45) +
-    PlotTheme1
+  geom_point(data = efit2, aes(x=V1, y= V2,shape = diet, color =inf_route), size = 2) +
+  geom_text(data = efit2 %>% filter(name %in% interesting),
+            aes(x=V1, y= V2,label = name),
+            hjust=0, vjust=0, angle=45) +
+  #facet_grid(~inf_route) +
+  PlotTheme1
 ```
 
 END OF KATE 03/03 CODE
 
 ```{r}
-meta$name = paste0("f",meta$sample)
-red_meta = select(meta, name,cohort,ferretID,DPI,inf_route,diet)
+red_meta = select(meta, sample,cohort,ferretID,DPI,inf_route,diet)
+```
 
-# Manhattan distances (L1 norm)
-man_df = as.data.frame(dist_man)
+Setting up dataframe for Manhattan distances (L1 norm)
+```{r}
+man_df = as.data.frame(man)
 man_df$sample = rownames(man_df)
 
 man_long = man_df %>%
   pivot_longer(!sample, names_to = c("comp"), values_to = "dist")
 man_long = man_long[!duplicated(man_long), ] %>% droplevels()
 
-man_long_m = merge(red_meta, man_long, by.x = c("name"), by.y = c("sample"))
+#adding metadata for first ferret in comparison
+man_long_m = merge(red_meta, man_long, by = c("sample"))
 man_long_m = man_long_m[!duplicated(man_long_m), ] %>% droplevels()
 
-# Euclidian distances (L2 norm)
-euc_df = as.data.frame(dist_euc)
+#adding metadata for second ferret in comparison
+man_long = merge(red_meta, man_long_m, by.x = c("sample"), by.y = c("comp"))
+man_long = man_long[!duplicated(man_long), ] %>% droplevels()
+```
+
+Setting up dataframe for Euclidian distances (L2 norm)
+```{r}
+euc_df = as.data.frame(euc)
 euc_df$sample = rownames(euc_df)
 
 euc_long = euc_df %>%
   pivot_longer(!sample, names_to = c("comp"), values_to = "dist")
 euc_long = euc_long[!duplicated(euc_long), ] %>% droplevels()
 
-euc_long_m = merge(red_meta, euc_long, by.x = c("name"), by.y = c("sample"))
+#adding metadata for first ferret in comparison
+euc_long_m = merge(red_meta, euc_long, by = c("sample"))
 euc_long_m = euc_long_m[!duplicated(euc_long_m), ] %>% droplevels()
-```
 
-Merge again so we have info for both samples in a comparison
-```{r}
-man_long = merge(red_meta, man_long_m, by.x = c("name"), by.y = c("comp"))
-man_long = man_long[!duplicated(man_long), ] %>% droplevels()
-
-euc_long = merge(red_meta, euc_long_m, by.x = c("name"), by.y = c("comp"))
+#adding metadata for second ferret in comparison
+euc_long = merge(red_meta, euc_long_m, by.x = c("sample"), by.y = c("comp"))
 euc_long = euc_long[!duplicated(euc_long), ] %>% droplevels()
 ```
 
@@ -344,7 +352,7 @@ L1_stock_index = ggplot(filter(man_long, inf_route.x == "Control" &
   PlotTheme1 +
   DietcolScale
 print(L1_stock_index)
-ggsave("L1_stock_index.pdf",L1_stock_index,path = savedir)
+#ggsave("L1_stock_index.pdf",L1_stock_index,path = savedir)
 
 L2_stock_index = ggplot(filter(euc_long, inf_route.x == "Control" & 
                 inf_route.y == "Index" &
@@ -358,7 +366,7 @@ L2_stock_index = ggplot(filter(euc_long, inf_route.x == "Control" &
   PlotTheme1 +
   DietcolScale
 print(L2_stock_index)
-ggsave("L2_stock_index.pdf",L2_stock_index,path = savedir)
+#ggsave("L2_stock_index.pdf",L2_stock_index,path = savedir)
 ```
 
 ```{r}
@@ -366,16 +374,22 @@ ggsave("L2_stock_index.pdf",L2_stock_index,path = savedir)
 ob_d02 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
                   cohort.x == cohort.y &
                   diet.y == "Obese" & DPI.y == "d02")
-ln_d02 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
+ob_d04 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
                   cohort.x == cohort.y &
-                  diet.y == "Lean" & DPI.y == "d02")
-t.test(ob_d02$dist,ln_d0$dist)
+                  diet.y == "Obese" & DPI.y == "d04")
+t.test(ln_d02$dist,ln_d04$dist)
 ```
 
 ```{r}
 man_long_pair = merge(man_long, pairs, by.x = c("ferretID.x"), by.y = c("ferretID"))
 man_long_p = merge(man_long_pair, pairs, by.x = c("ferretID.y"), by.y = c("ferretID"))
 ```
+
+
+
+Still need to get these below to make sense 
+
+
 
 ```{r}
 stock_index = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" & cohort.x == cohort.y) %>%
