@@ -1,0 +1,346 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library("tidyr")
+library('ggplot2')
+library('dplyr')
+library("glue")
+
+wkdir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01"
+setwd(wkdir)
+savedir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/Output_Figures"
+
+source("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/FD_functions.R")
+```
+
+```{r}
+diet = c("Obese","Lean","Control")
+dietColors = c("#FF9933","#66CCFF","#606060")
+names(dietColors) = diet
+DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
+DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
+```
+
+Specifying thresholds and plotting variables
+```{r}
+cov_cut = 200
+freq_cut = 0.01
+pvalcut  = 0.05
+
+ntlist = c("A","C","G","T")
+SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
+```
+
+#Loading metadata
+This includes titer and Ct values when applicable. ND indicates qPCR was run with a negative result; 0 indicates plaque assay or HAI was run with a negative result. NA for any values indicate that data was missing. Sacrificed indicates there was no data at that time point because the ferret had already been sacrficied for pathology. 
+```{r}
+metafile = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/H9_Metadata.csv"
+
+meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
+meta = filter(meta, resequenced == "yes")
+
+meta$Ct_Mgene = as.numeric(meta$Ct_Mgene)
+meta$titer = as.numeric(meta$titer)
+meta$log10_titer = as.numeric(meta$log10_titer)
+
+meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
+```
+
+Loading in coverage file & segment size information
+```{r}
+cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
+
+seg_sizes = "../SegmentSize.csv"
+sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
+GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
+
+cov$segment = factor(cov$segment, levels = SEGMENTS)
+```
+
+Checking if data passes thresholds 
+```{r}
+cov_check = CoverageAcross(cov,cov_cut,70,sizes, wkdir)
+```
+
+Merging coverage check info with the rest of the metadata
+```{r}
+meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"), all.y = TRUE)
+
+nrow(meta)
+count(meta,quality)
+```
+
+Loading in variant files
+```{r}
+varfile = "./varfiles/H9N2.VariantsOnly.0.01.200.csv"
+
+# read and rearrange the data
+vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
+vars$name = vars$sample
+```
+
+Rearranging variant dataframe
+```{r}
+vdf = ArrangeVarWRep(vars)
+# already have replicate data in the varfiles from running CompareReps.v2.py script
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+nrow(vdf)
+```
+
+Filtering variant df by timo binocheck
+```{r}
+vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
+vdf_bino = filter(vdf, binocheck != "False")
+vdf_bino = vdf_bino[!duplicated(vdf_bino), ] %>% droplevels()
+nrow(vdf_bino)
+# this really gets rid of a lot of variants (~1000)
+
+vdf_nobino = filter(vdf, binocheck != "True")
+vdf_nobino = vdf_nobino[!duplicated(vdf_nobino), ] %>% droplevels()
+nrow(vdf_nobino)
+
+range(vdf_nobino$minorfreq)
+ggplot(vdf_nobino, aes(x = minorfreq)) +
+  geom_histogram(binwidth = 0.01) +
+  PlotTheme1
+```
+
+Filtering variant df with frequency cutoffs
+```{r}
+vdf = filter(vdf, minorfreq1 >= freq_cut & 
+               minorfreq2 >= freq_cut & 
+               minor %in% ntlist &
+               major %in% ntlist) %>% 
+            droplevels()
+# based on MAF study, reps and 0.01% cutoff was best combo
+#filter each replicate separately rather than using the average
+
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+nrow(vdf)
+# does not eliminate any variants here
+```
+
+Adding metadata
+```{r}
+vdf = merge(vdf,meta, by = c("sample","segment"))
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+vdf$segment = factor(vdf$segment, levels = SEGMENTS)
+
+vdf = filter(vdf, inf_route == "Index" | inf_route == "Contact" | inf_route == "Control")
+# ignoring aerosol for now
+```
+
+```{r}
+vdf = filter(vdf, quality == "good")
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+good_names = c(levels(factor(vdf$sample)))
+```
+
+```{r}
+transmission_info = "/Users/marissaknoll/Desktop/GitHub/Obesity/NewExtractions/H9N2/TransmissionPairs.csv"
+pairs = read.csv(transmission_info, header = T)
+```
+
+```{r}
+fercount = select(vdf,sample,ferretID,DPI,diet,inf_route)
+fercount = fercount[!duplicated(fercount), ]  %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route,DPI) %>% 
+  tally()
+
+fercount = separate(fercount,sample,into = c("ferretID","DPI"))
+fercount = merge(fercount, pairs, by = c("ferretID"))
+  
+p1 = fercount %>% unique() %>% 
+    ggplot(., aes(x= DPI, y = pair_numbers, fill = diet)) + 
+    geom_tile(color = 'black') + 
+    PlotTheme3 +
+    DietcolScale_fill + 
+    facet_grid(pair_diets~inf_route, scales = 'free', space = 'free')
+print(p1)
+ggsave("ferrets_tileplot.pdf", p1, path = savedir,)
+```
+
+```{r}
+con_change = filter(vdf, stocknt != major) %>%
+  filter(major %in% ntlist)
+con_change = con_change[!duplicated(con_change), ]
+con_change$var = paste0(con_change$ferretID,"_",con_change$segment,"_",
+                        con_change$major,"_",con_change$ntpos,"_",con_change$minor)
+consensus = unique(con_change$var)
+length(consensus)
+```
+
+```{r}
+vdf$var = paste0(vdf$ferretID,"_",vdf$segment,"_",vdf$major,"_",vdf$ntpos,"_",vdf$minor)
+
+minorvdf = filter(vdf, !(var %in% consensus))
+minorvdf = minorvdf[!duplicated(minorvdf), ]
+nrow(vdf) - nrow(minorvdf)
+```
+
+Tallying SNVs
+```{r}
+# can make these groupings whatever you want
+
+# count the number of SNVs per sample
+group_list_seg = c('ferretID','segment',"DPI","diet","inf_route","cohort") # counts across each segment 
+group_list_gen = c('ferretID',"DPI","diet","inf_route","cohort") # Counts across entire genome
+
+seg_count = TallyIt(minorvdf, group_list_seg, "snv_count")
+gen_count = TallyIt(minorvdf, group_list_gen, "snv_count") 
+```
+
+```{r}
+# INCLUDING SEGMENTS WITH NO SNVS - but only using those that passed seq cutoff
+reseq_seg = select(meta,ferretID,segment,DPI,diet,inf_route,cohort, quality) %>% 
+  filter(quality == "good") %>% 
+  unique()
+seg_count = merge(seg_count,reseq_seg, all= TRUE)
+seg_count = seg_count[!duplicated(seg_count), ]
+
+seg_count$snv_count[is.na(seg_count$snv_count)] = 0
+seg_count = filter(seg_count, !is.na(ferretID))
+```
+
+```{r}
+reseq_gen = select(meta,ferretID,DPI,diet,inf_route,cohort,quality) %>% 
+  filter(quality == "good") %>% 
+  unique()
+gen_count = merge(gen_count,reseq_gen, all = TRUE)
+gen_count = gen_count[!duplicated(gen_count), ]
+
+gen_count$snv_count[is.na(gen_count$snv_count)] = 0
+gen_count = filter(gen_count, !is.na(ferretID))
+```
+
+```{r}
+# Average Number of Variants per Sample
+gen_count_avg = group_by(gen_count, DPI, diet, inf_route) %>%
+  mutate(avgSNV = mean(snv_count), sdSNV = sd(snv_count))
+
+seg_count_avg = group_by(seg_count, DPI, diet) %>%
+  mutate(avgSNV = mean(snv_count), sdSNV = sd(snv_count))
+```
+
+Calculating Shannon Entropy
+```{r}
+minorvdf = ShannonPos(minorvdf)
+minorvdf$SegmentSize = as.numeric(minorvdf$SegmentSize)
+minorvdf$shannon_perkb = (minorvdf$segment_shan/(minorvdf$SegmentSize/1000))
+minorvdf$normalized_shannon = (minorvdf$shannon/GenomeSize)
+```
+
+```{r}
+# shannon_ntpos = shannon entropy at that nt pos - should always be between 0 and 1 for each sample
+# segment_shan = sum of all nt_pos per segment for each sample
+# shannon = sum of all segment_shan across genome for each sample
+# shannon_perkb = segment shannon per kb (segment specific) for each sample
+# normalized_shannon = shannon divided by genome size (can make per kb by dividing by 1000) for each sample
+```
+
+```{r}
+# Average Shannon Entropy per Site per Sample (using normalized_shannon)
+shan_g = ungroup(minorvdf) %>%
+  select(ferretID, DPI, diet, inf_route, cohort,normalized_shannon) %>%
+  unique()
+shan_g = merge(shan_g,reseq_gen %>% unique(), by = c("ferretID", "DPI", "diet", "inf_route","cohort"), all= TRUE) %>%
+  filter(inf_route == "Index" | inf_route == "Control") %>% 
+  unique()
+shan_g$normalized_shannon[is.na(shan_g$normalized_shannon)] = 0
+
+dim(shan_g)
+shan_g <- shan_g[complete.cases(shan_g), ] 
+dim(shan_g)
+
+shan_gen_plot = ggplot(filter(shan_g, DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "Stock"), 
+       aes(x = diet, y = normalized_shannon/1000)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, aes(color = diet)) +
+  facet_grid(~DPI) +
+  PlotTheme1 +
+  DietcolScale
+print(shan_gen_plot)
+ggsave("shan_gen_plot.pdf", shan_gen_plot, path = savedir, width = 10, height = 5)
+```
+
+Test for significance
+```{r}
+o = filter(shan_g, DPI == "Stock" & diet == "Control")
+l = filter(shan_g, DPI == "d06" & diet == "Lean")
+t.test(o$normalized_shannon,l$normalized_shannon)
+```
+
+```{r}
+snv_count_segment_plot = filter(seg_count, inf_route == "Index") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06") %>%
+
+ggplot(. , aes(x = segment, y = snv_count, color = diet)) +
+  geom_boxplot() +
+  #geom_point() +
+  facet_grid(~DPI) +
+  PlotTheme1 +
+  DietcolScale
+print(snv_count_segment_plot)
+ggsave("snv_count_segment_plot.pdf", snv_count_segment_plot, path = savedir, width = 10, height = 5)
+
+
+gen_count_segment_plot = filter(gen_count, inf_route == "Index" | inf_route == "Control") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "Stock") %>%
+ggplot(. , aes(x = diet, y = snv_count)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, aes(color = diet)) +
+  facet_grid(~DPI) +
+  ylab("SNV richness per sample") +
+  PlotTheme1 +
+  DietcolScale
+print(gen_count_segment_plot)
+ggsave("gen_count_segment_plot.pdf",gen_count_segment_plot,path=savedir, width = 10, height = 5)
+```
+
+```{r}
+gen_count_pairs = merge(gen_count, pairs, by = c("ferretID"))
+
+gen_pairs_plot = ggplot(gen_count_pairs , aes(x=DPI , y = snv_count, color = diet)) +
+  geom_point(aes(group = diet), size = 2) +
+  geom_line(aes(group = ferretID)) +
+  #geom_errorbar(aes(ymin = avgSNV - sdSNV,
+  #                  ymax = avgSNV + sdSNV)) +
+  ylab("Average number of SNVs per sample") +
+  xlab("Days after infection") +
+  facet_grid(pair_diets~inf_route) +
+  PlotTheme1 +
+  DietcolScale
+print(gen_pairs_plot)
+ggsave("gen_pairs_plot_all.pdf", gen_pairs_plot, path = savedir)
+```
+
+dNdS analysis
+```{r}
+# by ferret
+dNdS_ferret = minorvdf %>% 
+  ungroup() %>% 
+  group_by(ferretID,DPI,diet,inf_route) %>% 
+  count(nonsyn)
+
+dNdS_ferret = pivot_wider(dNdS_ferret,names_from = nonsyn, values_from = n)
+dNdS_ferret = select(dNdS_ferret, ferretID,DPI,nonsyn,syn)
+dNdS_ferret$dNdS = paste0(dNdS_ferret$nonsyn / dNdS_ferret$syn)
+dNdS_ferret$dNdS = as.numeric(dNdS_ferret$dNdS)
+
+dNdS_ferret = filter(dNdS_ferret, inf_route == "Index" | inf_route == "Contact")
+
+dNdS_ferret_plot = ggplot(dNdS_ferret, aes(x = DPI, y = dNdS, color = ferretID)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(~diet+inf_route) +
+  PlotTheme1
+print(dNdS_ferret_plot)
+ggsave("dNdS_ferret.pdf", dNdS_ferret_plot, path = savedir)
+ggsave("dNdS_ferret.png", dNdS_ferret_plot, path = savedir, width = 10, height = 5)
+```

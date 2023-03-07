@@ -1,0 +1,239 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library("tidyr")
+library('ggplot2')
+library('dplyr')
+library("glue")
+
+wkdir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01"
+setwd(wkdir)
+savedir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/Output_Figures"
+
+source("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/FD_functions.R")
+```
+
+Specifying thresholds and plotting variables
+```{r}
+cov_cut = 200
+freq_cut = 0.01
+pvalcut  = 0.05
+
+ntlist = c("A","C","G","T")
+SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
+```
+
+```{r}
+diet = c("Obese","Lean","Control")
+dietColors = c("#FF9933","#66CCFF","#606060")
+names(dietColors) = diet
+DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
+DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
+```
+
+#Loading metadata
+This includes titer and Ct values when applicable. ND indicates qPCR was run with a negative result; 0 indicates plaque assay or HAI was run with a negative result. NA for any values indicate that data was missing. Sacrificed indicates there was no data at that time point because the ferret had already been sacrificed for pathology. 
+```{r}
+metafile = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/H9_Metadata.csv"
+
+meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
+meta = filter(meta, resequenced == "yes")
+
+meta$Ct_Mgene = as.numeric(meta$Ct_Mgene)
+meta$titer = as.numeric(meta$titer)
+meta$log10_titer = as.numeric(meta$log10_titer)
+
+meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
+```
+
+Ct & Titer Analysis
+```{r}
+meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
+
+CT_plot = ggplot(filter(meta, inf_route == "Index" | inf_route == "Contact"), 
+       aes(x = DPI, y = Ct_Mgene, color = as.character(ferretID))) +
+  geom_point(size = 3) +
+  geom_line(aes(group = ferretID), size = 1.5) +
+  geom_hline(yintercept = 30, linetype = "dotted") +
+  facet_grid(diet~inf_route) +
+  PlotTheme1
+print(CT_plot)
+ggsave("CT_plot.png",CT_plot, path = savedir, width = 15, height = 7)
+
+Titers_plot = ggplot(filter(meta, inf_route == "Index" | inf_route == "Contact"), 
+       aes(x = DPI, y = log10_titer, color = as.character(ferretID))) +
+  geom_point(size = 3) +
+  geom_line(aes(group = ferretID), size = 1.5) +
+  ylim(0,7) +
+  facet_grid(diet~inf_route) +
+  PlotTheme1
+print(Titers_plot)
+ggsave("Titers_plot.png",Titers_plot, path = savedir, width = 15, height = 7)
+```
+
+Loading in coverage file & segment size information
+```{r}
+cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
+
+seg_sizes = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/SegmentSize.csv"
+sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
+GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
+
+cov$segment = factor(cov$segment, levels = SEGMENTS)
+```
+
+Checking if data passes thresholds & make coverage plots
+```{r}
+cov_check = CoverageAcross(cov,cov_cut,70,sizes, wkdir)
+```
+
+```{r}
+cov_qual = select(cov_check, name, quality)
+cov_avgtiter = merge(cov, cov_qual, by = c("name"))
+
+cov_avgtiter$totalcount[is.na(cov_avgtiter$totalcount)] = 0
+cov_avgt = group_by(cov_avgtiter,segment,ntpos,quality) %>%
+  mutate(avg_cov = mean(totalcount))
+
+avg_titer_plot = ggplot(cov_avgt, aes(x = ntpos, y = avg_cov, color = quality)) +
+  geom_line() +
+  facet_grid(~segment) +
+  PlotTheme1
+print(avg_titer_plot)
+ggsave("avg_titer_plot.pdf",avg_titer_plot,path = savedir, width = 10, height = 5)
+```
+
+Merging coverage check info with the rest of the metadata
+```{r}
+meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"), all.y = TRUE)
+
+nrow(meta)
+count(meta,quality)
+```
+
+# Making titer plots
+```{r}
+ggplot(filter(meta, DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" |DPI == "d10" | DPI == "d12"),
+       aes(x = DPI, y = log10_titer, color = diet)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(~inf_route) +
+  PlotTheme1 +
+  DietcolScale
+
+# don't have titer information for W17 cohort (probably were never measured)
+# don't have this info past day 6 for some ferrets sacrificed for pathology at St Jude's
+
+m1 = filter(meta, titer != "NA" & titer != "sacrificed") %>%
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
+  group_by(inf_route, diet, DPI,cohort) %>%
+  mutate(avg_titer = mean(titer)) %>%
+  mutate(avg_log_titer = mean(log10_titer)) %>%
+  ungroup()
+
+avg_titer = ggplot(filter(m1, inf_route == "Index" | inf_route == "Contact"), 
+              aes(x = DPI, y = avg_log_titer, color = cohort)) +
+  geom_point(size = 3) +
+  geom_line(aes(group = cohort), size = 1.5) +
+  facet_grid(diet~inf_route) +
+  ylim(0,6) + 
+  PlotTheme1 #+
+#  DietcolScale
+print(avg_titer)
+ggsave("avg_titer.pdf", avg_titer, path = savedir, width = 10, height = 5)
+
+m1_good = filter(meta, quality == "good") %>% 
+  filter(titer != "NA" & titer != "sacrificed") %>%
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
+  group_by(inf_route, diet, DPI) %>%
+  mutate(avg_titer = mean(titer)) %>%
+  mutate(avg_log_titer = mean(log10_titer)) %>%
+  ungroup()
+
+avg_titer_nozeroes = ggplot(filter(m1_good,inf_route == "Index" | inf_route == "Contact"), 
+              aes(x = DPI, y = avg_log_titer, color = diet)) +
+  geom_point(size = 3) +
+  geom_line(aes(group = diet), size = 1.5) +
+  facet_grid(~inf_route) +
+  ylim(0,6) + 
+  PlotTheme1 +
+  DietcolScale
+print(avg_titer_nozeroes)
+ggsave("avg_titer_nozeroes.pdf",avg_titer_nozeroes,path = savedir,width = 7, height = 5)
+
+m1_all = filter(meta, titer != "NA" & titer != "sacrificed") %>%
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
+  group_by(diet, DPI) %>%
+  mutate(avg_titer = mean(titer)) %>%
+  mutate(avg_log_titer = mean(log10_titer)) %>%
+  ungroup()
+
+avg_titer_all = ggplot(filter(m1_all,inf_route == "Index" | inf_route == "Contact"), 
+              aes(x = DPI, y = avg_log_titer, color = diet)) +
+  geom_point(size = 3) +
+  geom_line(aes(group = diet), size = 1.5) +
+  ylim(0,6) + 
+  PlotTheme1 +
+  DietcolScale
+print(avg_titer_all)
+
+m1_all_good = filter(meta, quality == "good") %>% 
+  filter(titer != "NA" & titer != "sacrificed") %>%
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
+  group_by(diet, DPI) %>%
+  mutate(avg_titer = mean(titer)) %>%
+  mutate(avg_log_titer = mean(log10_titer)) %>%
+  ungroup()
+
+avg_titer_all_good= ggplot(filter(m1_all_good,inf_route == "Index" | inf_route == "Contact"), 
+              aes(x = DPI, y = avg_log_titer, color = diet)) +
+  geom_point(size = 3) +
+  geom_line(aes(group = diet), size = 1.5) +
+  ylim(0,6) + 
+  PlotTheme1 +
+  DietcolScale
+print(avg_titer_all_good)
+
+ggplot(meta, aes(x = quality, y = log10_titer)) +
+  geom_point()
+```
+
+Ct Values
+```{r}
+ggplot(filter(m1, DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12"),
+       aes(x = DPI, y = Ct_Mgene)) +
+  geom_point()
+
+ggplot(filter(m1, DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12"),
+       aes(x = log10_titer, y = Ct_Mgene)) +
+  geom_point() +
+  xlim(0,8) +
+  PlotTheme1
+
+ggplot(filter(m1, log10_titer > 1), aes(x = log10_titer, y = Ct_Mgene)) +
+  geom_point() +
+  xlim(0,8) +
+  PlotTheme1
+
+ggplot(meta, aes(x = quality, y = Ct_Mgene)) +
+  geom_point()
+
+Ct_dist_plot = ggplot(meta, aes(x = Ct_Mgene, fill = quality)) +
+  geom_histogram(binwidth = 1) +
+  geom_vline(xintercept = 32, linetype = "dashed") +
+  PlotTheme1 +
+  ylab("Number of samples")
+print(Ct_dist_plot)
+ggsave("Ct_dist_plot.pdf",Ct_dist_plot,path = savedir, width = 7, height = 5)
+```
+

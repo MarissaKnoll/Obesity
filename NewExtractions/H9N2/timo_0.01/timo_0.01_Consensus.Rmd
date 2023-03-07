@@ -1,0 +1,230 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library("tidyr")
+library('ggplot2')
+library('dplyr')
+library("glue")
+
+wkdir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01"
+setwd(wkdir)
+savedir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/Output_Figures"
+
+source("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/FD_functions.R")
+```
+
+```{r}
+diet = c("Obese","Lean","Control")
+dietColors = c("#FF9933","#66CCFF","#606060")
+names(dietColors) = diet
+DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
+DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
+```
+
+#Loading metadata
+This includes titer and Ct values when applicable. ND indicates qPCR was run with a negative result; 0 indicates plaque assay or HAI was run with a negative result. NA for any values indicate that data was missing. Sacrificed indicates there was no data at that time point because the ferret had already been sacrficied for pathology. 
+```{r}
+metafile = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/H9_Metadata.csv"
+
+meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
+meta = filter(meta, resequenced == "yes")
+
+meta$Ct_Mgene = as.numeric(meta$Ct_Mgene)
+meta$titer = as.numeric(meta$titer)
+meta$log10_titer = as.numeric(meta$log10_titer)
+
+meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
+```
+
+Specifying thresholds and plotting variables
+```{r}
+cov_cut = 200
+freq_cut = 0.01
+pvalcut  = 0.05
+
+ntlist = c("A","C","G","T")
+SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
+```
+
+Loading in variant files
+```{r}
+varfile = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/varfiles/H9N2.VariantsOnly.0.01.200.csv"
+
+# read and rearrange the data
+vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
+vars$name = vars$sample
+```
+
+Rearranging variant dataframe
+```{r}
+vdf = ArrangeVarWRep(vars)
+# already have replicate data in the varfiles from running CompareReps.v2.py script
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+nrow(vdf)
+```
+
+Filtering variant df by timo binocheck
+```{r}
+vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
+vdf_bino = filter(vdf, binocheck != "False")
+vdf_bino = vdf_bino[!duplicated(vdf_bino), ] %>% droplevels()
+nrow(vdf_bino)
+```
+
+Filtering variant df with frequency cutoffs
+```{r}
+vdf = filter(vdf, minorfreq1 >= freq_cut & 
+               minorfreq2 >= freq_cut & 
+               minor %in% ntlist &
+               major %in% ntlist) %>% 
+            droplevels()
+# based on MAF study, reps and 0.01% cutoff was best combo
+#filter each replicate separately rather than using the average
+
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+nrow(vdf)
+# does not eliminate any variants here
+```
+
+Loading in coverage file & segment size information
+```{r}
+cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
+
+seg_sizes = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/SegmentSize.csv"
+sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
+GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
+
+cov$segment = factor(cov$segment, levels = SEGMENTS)
+```
+
+Checking if data passes thresholds
+```{r}
+cov_check = CoverageAcross(cov,cov_cut,70,sizes, wkdir)
+cov_qual = select(cov_check, name, quality)
+cov_avgtiter = merge(cov, cov_qual, by = c("name"))
+```
+
+Merging coverage check info with the rest of the metadata
+```{r}
+meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"), all.y = TRUE)
+
+nrow(meta)
+count(meta,quality)
+```
+
+Adding metadata
+```{r}
+vdf = merge(vdf,meta, by = c("sample","segment"))
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+vdf$segment = factor(vdf$segment, levels = SEGMENTS)
+
+vdf = filter(vdf, inf_route == "Index" | inf_route == "Contact" | inf_route == "Control")
+# ignoring aerosol for now
+```
+
+```{r}
+vdf = filter(vdf, quality == "good")
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+good_names = c(levels(factor(vdf$sample)))
+```
+
+Consensus changes
+```{r}
+con_change = filter(vdf, stocknt != major) %>%
+  filter(major %in% ntlist)
+con_change = con_change[!duplicated(con_change), ]
+nrow(con_change)
+
+con_change$maj = paste0(con_change$segment,"_",con_change$stock,con_change$ntpos)
+con_change$ferretID_maj = paste0(con_change$ferretID,"_",con_change$maj)
+con_change = con_change[!duplicated(con_change$ferretID_maj),] 
+# not counting same consensus change but just on different days - basically counting unique consensus changes
+
+nrow(con_change)
+cons = count(con_change,ferretID,diet,inf_route)
+
+select(con_change, stocknt, major, minor)
+# in all cases, the stocknt is the minor -> has been replaced by another nt
+# did these arise as minors first?
+```
+
+Plotting consensus changes
+```{r}
+ggplot(filter(con_change, quality == "good", inf_route == "Contact"), aes(x = DPI, y = majorfreq, color = diet)) +
+  geom_point() +
+  facet_grid(inf_route~ferretID) +
+  PlotTheme1 +
+  DietcolScale
+
+group_by(con_change, diet, inf_route,ferretID, DPI) %>%
+  tally()
+```
+
+```{r}
+con_change$var = paste0(con_change$ferretID,"_",con_change$segment,"_",
+                        con_change$major,"_",con_change$ntpos,"_",con_change$minor)
+consensus = unique(con_change$var)
+length(consensus)
+```
+
+```{r}
+vdf$var = paste0(vdf$ferretID,"_",vdf$segment,"_",vdf$major,"_",vdf$ntpos,"_",vdf$minor)
+
+minorvdf = filter(vdf, !(var %in% consensus))
+minorvdf = minorvdf[!duplicated(minorvdf), ]
+nrow(vdf) - nrow(minorvdf)
+```
+
+Can the consensus changes be detected as minor variants first?
+```{r}
+majpos = c("H9N2_NP_326","H9N2_PB1_1882","H9N2_HA_284","H9N2_PB1_965",
+           "H9N2_NS_652","H9N2_PA_1483","H9N2_HA_747","H9N2_PB2_639",
+           "H9N2_PB1_1882")
+  
+minorvdf$var = paste0(minorvdf$segment,"_",minorvdf$ntpos)
+pos_minors = filter(minorvdf, var %in% majpos)
+pos_minors$freq = pos_minors$minorfreq
+pos_minors = pos_minors[!duplicated(pos_minors), ] %>% droplevels()
+
+pos_majors = con_change %>% select(!c("maj","ferretID_maj"))
+pos_majors$var = paste0(pos_majors$segment,"_",pos_majors$ntpos)
+pos_majors$freq = pos_majors$majorfreq
+
+all_pos = rbind(pos_majors,pos_minors) %>% droplevels()
+all_pos$segment = factor(all_pos$segment, levels = SEGMENTS)
+all_pos$diet = factor(all_pos$diet, levels = c("Obese","Lean"))
+
+all_pos = filter(all_pos, ferretID == "1409"|
+                ferretID == "1789"| ferretID == "1794"|
+                ferretID == "1801"| ferretID == "1797"|
+                ferretID == "1971"| ferretID == "1980"|
+                ferretID == "1973"| ferretID == "1986"|
+                ferretID == "2253"| ferretID == "2231"|
+                ferretID == "2233"| ferretID == "2232"|
+                ferretID == "2254"| ferretID == "2238")
+```
+
+```{r}
+transmission_info = "/Users/marissaknoll/Desktop/GitHub/Obesity/NewExtractions/H9N2/TransmissionPairs.csv"
+pairs = read.csv(transmission_info, header = T)
+```
+
+```{r}
+all_pos = merge(all_pos, pairs)
+
+minortocon_plot = ggplot(filter(all_pos), 
+                         aes(x = DPI, y = freq, color = var)) +
+  geom_point(size = 2) +
+  geom_line(aes(group = var)) +
+  geom_hline(yintercept = 0.5, linetype = "dotted", color = "red") +
+  facet_grid(pair_numbers~inf_route, drop = FALSE) +
+  PlotTheme1
+print(minortocon_plot)
+ggsave("minortocon_plot.pdf",minortocon_plot,path = savedir, height = 5, width = 10)
+
+```

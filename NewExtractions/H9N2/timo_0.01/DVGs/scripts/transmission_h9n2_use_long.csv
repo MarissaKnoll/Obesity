@@ -1,0 +1,68 @@
+ferret_id,ferret_weight,type,pair,flag,chain_position,notes,index_direct,worked
+1787,obese,index,A,keep,1,,obese_obese,
+1793,obese,direct,A,keep,2,,obese_obese,no
+1803,lean,aerosol,A,keep,3,,obese_obese,no
+1788,obese,secondary,A,keep,4,,obese_obese,
+1789,obese,index,B,keep,1,,obese_obese,
+1794,obese,direct,B,keep,2,,obese_obese,
+1805,lean,aerosol,B,keep,3,,obese_obese,
+1795,obese,secondary,B,keep,4,,obese_obese,
+1800,lean,index,C,keep,1,,lean_lean,
+1803,lean,direct,C,keep,2,,lean_lean,no
+1790,lean,aerosol,C,keep,3,,lean_lean,
+1801,lean,index,D,keep,1,,lean_lean,
+1797,lean,direct,D,keep,2,,lean_lean,
+1796,lean,aerosol,D,keep,3,,lean_lean,
+1910,obese,index,E,keep,1,,obese_obese,
+1911,obese,direct,E,keep,2,,obese_obese,no
+1982,obese,aerosol,E,keep,3,,obese_obese,
+1978,obese,secondary,E,keep,4,,obese_obese,
+1912,obese,index,F,keep,1,,obese_obese,
+1914,obese,direct,F,keep,2,,obese_obese,
+1985,obese,aerosol,F,keep,3,,obese_obese,
+1979,obese,secondary,F,keep,4,,obese_obese,
+1970,lean,index,G,keep,1,,lean_obese,
+1981,obese,direct,G,keep,2,,lean_obese,
+1971,lean,index,H,keep,1,,lean_obese,
+1980,obese,direct,H,keep,2,,lean_obese,
+1973,lean,index,I,keep,1,,lean_lean,
+1986,lean,direct,I,keep,2,,lean_lean,
+1974,lean,index,J,keep,1,,lean_obese,
+1987,obese,direct,J,keep,2,,lean_obese,no
+1975,obese,index,K,keep,1,,obese_lean,
+1967,lean,direct,K,keep,2,,obese_lean,no
+1977,lean,index,L,keep,1,,lean_lean,
+1976,lean,direct,L,keep,2,,lean_lean,no
+1983,obese,index,M,keep,1,,obese_lean,
+1913,lean,direct,M,keep,2,,obese_lean,
+1984,obese,index,N,keep,1,,obese_lean,
+1915,lean,direct,N,keep,2,,obese_lean,no
+2232,obese,index,O,ignore,1,look into,obese_lean,
+2244,lean,direct,O,ignore,2,look into,obese_lean,no
+2230,obese,aerosol,O,ignore,3,look into,obese_lean,
+2233,obese,index,P,keep,1,look into,obese_obese,
+2232,obese,direct,P,keep,2,look into,obese_obese,
+2230,obese,aerosol,P,keep,3,look into,obese_obese,
+2234,obese,index,Q,keep,1,look into,obese_obese,
+2235,obese,direct,Q,keep,2,look into,obese_obese,no
+2237,obese,aerosol,Q,keep,3,look into,obese_obese,
+2235,obese,index,R,ignore,1,look into,obese_obese,no
+2243,obese,direct,R,ignore,2,look into,obese_obese,
+2237,obese,aerosol,R,ignore,3,look into,obese_obese,
+2239,obese,index,S,ignore,1,look into,obese_lean,
+2246,lean,direct,S,ignore,2,look into,obese_lean,no
+2242,obese,aerosol,S,ignore,3,look into,obese_lean,
+2240,obese,index,T,keep,1,look into,obese_obese,
+2239,obese,direct,T,keep,2,look into,obese_obese,
+2242,obese,aerosol,T,keep,3,look into,obese_obese,
+2251,lean,index,U,keep,1,,lean_obese,
+2241,obese,direct,U,keep,2,,lean_obese,no
+2253,lean,index,V,keep,1,,lean_obese,
+2231,obese,direct,V,keep,2,,lean_obese,
+2254,lean,index,W,keep,1,,lean_obese,
+2238,obese,direct,W,keep,2,,lean_obese,
+2867,obese,index,X,ignore,1,ignore for now,na,
+2869,obese,aerosol,X,ignore,3,ignore for now,na,
+2868,obese,index,Y,ignore,1,ignore for now,na,
+2870,obese,aerosol,Y,ignore,3,ignore for now,na,
+HK1073,stock,stock,Z,keep,0,,stock_stock,

@@ -1,0 +1,496 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library("tidyr")
+library('ggplot2')
+library('dplyr')
+library("glue")
+
+wkdir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01"
+savedir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/Output_Figures"
+
+source("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/FD_functions.R")
+```
+
+```{r}
+diet = c("Obese","Lean","Control")
+dietColors = c("#FF9933","#66CCFF","#606060")
+names(dietColors) = diet
+DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
+DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
+```
+
+Specifying thresholds and plotting variables
+```{r}
+cov_cut = 200
+freq_cut = 0.01
+pvalcut  = 0.05
+
+ntlist = c("A","C","G","T")
+SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
+```
+
+#Loading metadata
+This includes titer and Ct values when applicable. ND indicates qPCR was run with a negative result; 0 indicates plaque assay or HAI was run with a negative result. NA for any values indicate that data was missing. Sacrificed indicates there was no data at that time point because the ferret had already been sacrficied for pathology. 
+```{r}
+metafile = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/H9_Metadata.csv"
+
+meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
+meta = filter(meta, resequenced == "yes")
+
+meta$Ct_Mgene = as.numeric(meta$Ct_Mgene)
+meta$titer = as.numeric(meta$titer)
+meta$log10_titer = as.numeric(meta$log10_titer)
+
+meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
+```
+
+Loading in coverage file & segment size information
+```{r}
+cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
+
+seg_sizes = "../SegmentSize.csv"
+sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
+GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
+
+cov$segment = factor(cov$segment, levels = SEGMENTS)
+```
+
+Checking if data passes thresholds & make coverage plots
+```{r}
+cov_check = CoverageAcross(cov,cov_cut,70,sizes, wkdir)
+```
+
+Merging coverage check info with the rest of the metadata
+```{r}
+meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"), all.y = TRUE)
+
+nrow(meta)
+count(meta,quality)
+```
+
+Loading in variant files
+```{r}
+varfile = "./varfiles/H9N2.VariantsOnly.0.01.200.csv"
+
+# read and rearrange the data
+vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
+vars$name = vars$sample
+```
+
+Rearranging variant dataframe
+```{r}
+vdf = ArrangeVarWRep(vars)
+# already have replicate data in the varfiles from running CompareReps.v2.py script
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+nrow(vdf)
+```
+
+Filtering variant df by timo binocheck
+```{r}
+vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
+vdf_bino = filter(vdf, binocheck != "False")
+vdf_bino = vdf_bino[!duplicated(vdf_bino), ] %>% droplevels()
+nrow(vdf_bino)
+# this really gets rid of a lot of variants (~1000)
+```
+
+Filtering variant df with frequency cutoffs
+```{r}
+vdf = filter(vdf, minorfreq1 >= freq_cut & 
+               minorfreq2 >= freq_cut & 
+               minor %in% ntlist &
+               major %in% ntlist) %>% 
+            droplevels()
+# based on MAF study, reps and 0.01% cutoff was best combo
+#filter each replicate separately rather than using the average
+
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+nrow(vdf)
+# does not eliminate any variants here
+```
+
+Adding metadata
+```{r}
+vdf = merge(vdf,meta, by = c("sample","segment"))
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+vdf$segment = factor(vdf$segment, levels = SEGMENTS)
+
+vdf = filter(vdf, inf_route == "Index" | inf_route == "Contact" | inf_route == "Control")
+# ignoring aerosol for now
+```
+
+```{r}
+vdf = filter(vdf, quality == "good")
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+good_names = c(levels(factor(vdf$sample)))
+```
+
+```{r}
+transmission_info = "/Users/marissaknoll/Desktop/GitHub/Obesity/NewExtractions/H9N2/TransmissionPairs.csv"
+pairs = read.csv(transmission_info, header = T)
+```
+
+```{r}
+con_change = filter(vdf, stocknt != major) %>%
+  filter(major %in% ntlist)
+con_change = con_change[!duplicated(con_change), ]
+con_change$var = paste0(con_change$ferretID,"_",con_change$segment,"_",
+                        con_change$major,"_",con_change$ntpos,"_",con_change$minor)
+consensus = unique(con_change$var)
+length(consensus)
+```
+
+```{r}
+vdf$var = paste0(vdf$ferretID,"_",vdf$segment,"_",vdf$major,"_",vdf$ntpos,"_",vdf$minor)
+
+minorvdf = filter(vdf, !(var %in% consensus))
+minorvdf = minorvdf[!duplicated(minorvdf), ]
+nrow(vdf) - nrow(minorvdf)
+```
+
+Genetic distance measure
+
+```{r}
+distvars = read.csv("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/varfiles/H9N2.VariantPositions.AcrossSamples.0.01.200.csv",
+                    header = T)
+distvars = distvars[!duplicated(distvars), ] %>% filter(sample %in% good_names)
+```
+
+```{r}
+gd2 = select(distvars,sample,segment,ntpos,nt,freq) %>% filter(sample %in% good_names) #MARISSA CHECK THIS - WHY DON'T THE GOOD NAMES MATCH
+gd2$sample = paste0('f', gd2$sample)
+
+gd2 = gd2 %>% filter(nt != "-") %>%
+  group_by(sample, segment) %>%
+  pivot_wider(names_from = nt, values_from = freq, id_cols = c(sample, segment, ntpos), values_fill = 0) %>%
+  arrange(segment,ntpos)
+
+gd2 = gd2[!duplicated(gd2),] %>% droplevels() # remove any dups
+
+gd2$positions = paste0(gd2$segment,'_', gd2$ntpos)
+positions = c(levels(factor(gd2$positions)))
+
+gd2 = filter(gd2, sample != "f1415_d02")
+```
+
+```{r}
+filter(gd2, positions == "H9N2_PB2_984")
+filter(distvars, ntpos == "984")
+```
+
+```{r}
+gd2 = gd2 %>% group_by(sample) %>%
+mutate(sample_count = n()) %>%
+ungroup() %>% filter(sample_count == 686) %>% unique()
+
+gd2 %>% select(sample_count,sample) %>% unique() %>% group_by(sample_count) %>% tally() # trying to determine positions that passed cutoff -> figure out why this isn't all of them (eventually)
+# Kate thinks it is python code in generating .csv, specifically the totalcount (major cutoff) not passing a threshold
+
+set1 = unique(factor(gd2$sample)) #check to make sure everything is the same size throughout
+```
+
+MADE WITH KATE 03/03
+
+```{r}
+temp = gd2
+
+samps = gd2$sample %>% unique()
+man = matrix(data = 0, nrow = length(samps) , ncol = length(samps)) 
+# generate empty matrix with the dimensions equal to the number of samples to add dist numbers to
+rownames(man) = samps
+colnames(man) = samps
+
+euc = matrix(data = 0, nrow = length(samps) , ncol = length(samps))
+rownames(euc) = samps
+colnames(euc) = samps
+
+for (i in c(levels(factor(temp$positions)))){ 
+    print(i)
+    t = temp %>% filter(positions == i) %>% unique()
+    t = t %>% select(-segment, -positions, -sample_count) %>% unique() %>% as.data.frame()
+    rownames(t) = t$sample
+    t = t %>% select(-sample, -ntpos)
+
+    m = dist(t, method = "manhattan", diag=T, upper=T)
+    m1 = as.matrix(m)
+
+    print(dim(m1)) 
+    print(dim(man))
+    
+    # check to make sure man and m1 are in same order
+    # change order of man to order of m1
+    man = man[rownames(m1), ]
+    man = man[,colnames(m1)]
+  
+    if(identical(dimnames(man), dimnames(m1)) == TRUE){
+    
+      man <- man + m1 #add to the overall matrix
+    
+    }else{
+      
+      print("dimnames are off")
+    
+    }
+    
+    e = dist(t, method = "euclidean", diag=T, upper=T)
+    e1 = as.matrix(e)
+
+    print(dim(e1)) 
+    print(dim(euc))
+    
+    # check to make sure euc and e1 are in same order
+    # change order of euc to order of e1
+    euc = euc[rownames(e1), ]
+    euc = euc[,colnames(e1)]
+  
+    if(identical(dimnames(euc), dimnames(e1)) == TRUE){
+    
+      euc <- euc + e1 #add to the overall matrix
+    
+    }else{
+      
+      print("dimnames are off")
+    
+    }
+  
+}
+
+```
+
+```{r}
+#Manhattan distance (L1 norm)
+mfit <- cmdscale(as.dist(man), eig=TRUE, k=2)
+mfit2 = as.data.frame(mfit$points)
+mfit2$name = rownames(man)
+mfit2 = merge(mfit2, meta, by = c('name')) 
+
+ggplot() +
+    geom_point(data = mfit2, aes(x=V1, y= V2,shape = diet, color =inf_route), size = 2) +
+    geom_text(data = mfit2 %>% filter(diet == 'Control'), 
+                aes(x=V1, y= V2,label = name), 
+       hjust=0, vjust=0, angle=45) +
+    PlotTheme1
+```
+
+```{r}
+#Euclidean distance (L2 norm)
+efit <- cmdscale(as.dist(euc), eig=TRUE, k=2)
+efit2 = as.data.frame(efit$points)
+efit2$name = rownames(euc)
+efit2 = merge(efit2, meta, by = c('name')) 
+
+ggplot() +
+    geom_point(data = efit2, aes(x=V1, y= V2,shape = diet, color =inf_route), size = 2) +
+    geom_text(data = efit2 %>% filter(diet == 'Control'), 
+                aes(x=V1, y= V2,label = name), 
+       hjust=0, vjust=0, angle=45) +
+    PlotTheme1
+```
+
+END OF KATE 03/03 CODE
+
+```{r}
+meta$name = paste0("f",meta$sample)
+red_meta = select(meta, name,cohort,ferretID,DPI,inf_route,diet)
+
+# Manhattan distances (L1 norm)
+man_df = as.data.frame(dist_man)
+man_df$sample = rownames(man_df)
+
+man_long = man_df %>%
+  pivot_longer(!sample, names_to = c("comp"), values_to = "dist")
+man_long = man_long[!duplicated(man_long), ] %>% droplevels()
+
+man_long_m = merge(red_meta, man_long, by.x = c("name"), by.y = c("sample"))
+man_long_m = man_long_m[!duplicated(man_long_m), ] %>% droplevels()
+
+# Euclidian distances (L2 norm)
+euc_df = as.data.frame(dist_euc)
+euc_df$sample = rownames(euc_df)
+
+euc_long = euc_df %>%
+  pivot_longer(!sample, names_to = c("comp"), values_to = "dist")
+euc_long = euc_long[!duplicated(euc_long), ] %>% droplevels()
+
+euc_long_m = merge(red_meta, euc_long, by.x = c("name"), by.y = c("sample"))
+euc_long_m = euc_long_m[!duplicated(euc_long_m), ] %>% droplevels()
+```
+
+Merge again so we have info for both samples in a comparison
+```{r}
+man_long = merge(red_meta, man_long_m, by.x = c("name"), by.y = c("comp"))
+man_long = man_long[!duplicated(man_long), ] %>% droplevels()
+
+euc_long = merge(red_meta, euc_long_m, by.x = c("name"), by.y = c("comp"))
+euc_long = euc_long[!duplicated(euc_long), ] %>% droplevels()
+```
+
+```{r}
+L1_stock_index = ggplot(filter(man_long, inf_route.x == "Control" & 
+                inf_route.y == "Index" &
+                cohort.x == cohort.y)) +
+  geom_boxplot(aes(x = diet.y, y = dist), outlier.shape =  NA, width = 0.5) +
+  geom_jitter(aes(x = diet.y, y = dist, group = diet.y, color = diet.y), width = 0.1) +
+  facet_grid(~DPI.y,scales = 'free', space ='free') +
+  ggtitle("L1-norm between index samples and stock") +
+  xlab("Diet of index ferret") +
+  ylab("L1-norm (Man. distance)") +
+  PlotTheme1 +
+  DietcolScale
+print(L1_stock_index)
+ggsave("L1_stock_index.pdf",L1_stock_index,path = savedir)
+
+L2_stock_index = ggplot(filter(euc_long, inf_route.x == "Control" & 
+                inf_route.y == "Index" &
+                cohort.x == cohort.y)) +
+  geom_boxplot(aes(x = diet.y, y = dist), outlier.shape =  NA, width = 0.5) +
+  geom_jitter(aes(x = diet.y, y = dist, group = diet.y, color = diet.y), width = 0.1) +
+  facet_grid(~DPI.y,scales = 'free', space ='free') +
+  ggtitle("L2-norm between index samples and stock") +
+  xlab("Diet of index ferret") +
+  ylab("L2-norm (Euc. distance)") +
+  PlotTheme1 +
+  DietcolScale
+print(L2_stock_index)
+ggsave("L2_stock_index.pdf",L2_stock_index,path = savedir)
+```
+
+```{r}
+# T tests
+ob_d02 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
+                  cohort.x == cohort.y &
+                  diet.y == "Obese" & DPI.y == "d02")
+ln_d02 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
+                  cohort.x == cohort.y &
+                  diet.y == "Lean" & DPI.y == "d02")
+t.test(ob_d02$dist,ln_d0$dist)
+```
+
+```{r}
+man_long_pair = merge(man_long, pairs, by.x = c("ferretID.x"), by.y = c("ferretID"))
+man_long_p = merge(man_long_pair, pairs, by.x = c("ferretID.y"), by.y = c("ferretID"))
+```
+
+```{r}
+stock_index = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" & cohort.x == cohort.y) %>%
+  mutate(cat = "Stock -> Index",
+         group = "Stock") %>%
+  mutate(pair_numbers.x = NA,
+         pair_diets.x = NA,
+         pair_numbers.y = NA,
+         pair_diets.y = NA) %>%
+  select(-c("group"))
+index_contact_pairs = filter(man_long_p, inf_route.x == "Index" & inf_route.y == "Contact" & pair_numbers.x == pair_numbers.y) %>%
+  mutate(cat = "Index -> Contact (Pairs)")
+# 10 LN -> LN, 2 LN -> OB, 26 OB -> OB
+index_contact_notpairs = filter(man_long_p, inf_route.x == "Index" & inf_route.y == "Contact" & pair_numbers.x != pair_numbers.y) %>%
+  mutate(cat = "Index -> Contact (Not Pairs)")
+
+man_comps = rbind(stock_index, index_contact_pairs, index_contact_notpairs)
+man_comps$cat = factor(man_comps$cat, levels = c("Stock -> Index","Index -> Contact (Pairs)","Index -> Contact (Not Pairs)"))
+
+ggplot(man_comps) +
+  geom_boxplot(aes(x = cat, y = dist, color = diet.y), outlier.shape =  NA, width = 0.5) +
+#  geom_jitter(aes(x = cat, y = dist, group = diet.y, color = diet.y), width = 0.1) +
+  ggtitle("L1-norm between index samples and stock") +
+  xlab("Comparison") +
+  ylab("L1-norm (Man. distance)") +
+  PlotTheme1 +
+  DietcolScale
+# the outliers are all comparisons to 1415_d02 which is weird
+```
+
+```{r}
+LN_LN = filter(man_long_p, inf_route.x == "Index" & inf_route.y == "Contact" & 
+                 pair_numbers.x == pair_numbers.y & pair_diets.x == "LN>LN") %>%
+  mutate(cat = "Lean -> Lean Pairs")
+
+OB_OB = filter(man_long_p, inf_route.x == "Index" & inf_route.y == "Contact" & 
+                 pair_numbers.x == pair_numbers.y & pair_diets.x == "OB>OB") %>%
+  mutate(cat = "Obese -> Obese Pairs")
+
+man_comps2 = rbind(stock_index, LN_LN, OB_OB, index_contact_notpairs)
+man_comps2$cat = factor(man_comps2$cat, levels = c("Stock -> Index",
+                                                 "Lean -> Lean Pairs","Obese -> Obese Pairs",
+                                                 "Index -> Contact (Not Pairs)"))
+
+Man_plot2 = ggplot(man_comps2) +
+  geom_boxplot(aes(x = cat, y = dist, color = diet.y), outlier.shape =  NA, width = 0.5) +
+#  geom_jitter(aes(x = cat, y = dist, group = diet.y, color = diet.y), width = 0.1) +
+  ggtitle("L1-norm between index samples and stock") +
+  xlab("Comparison") +
+  ylab("L1-norm (Man. distance)") +
+  PlotTheme1 +
+  DietcolScale
+print(Man_plot2)
+ggsave("Man_plot2.pdf", Man_plot2, width = 10, height = 5, path = savedir)
+```
+Stock to Index Day 2 comparisons (Stock -> Lean, Stock -> Obese)
+```{r}
+ggplot(filter(dist_long_m, cohort == "W17", comp == "fW17_HK1073", inf_route == "Index", DPI == "d02"), 
+       aes(x = diet, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  PlotTheme1
+# had to filter by comp so the individual samples would keep their metadata
+
+ggplot(filter(dist_long_m, cohort == "F17", comp == "fF17_HK1073", inf_route == "Index", DPI == "d02"), 
+       aes(x = diet, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  PlotTheme1
+
+ggplot(filter(dist_long_m, cohort == "Sm18", comp == "fSm18_HK1073", inf_route == "Index", DPI == "d02"), 
+       aes(x = diet, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  PlotTheme1
+
+ggplot(filter(dist_long_m, cohort == "Sp20", comp == "fSp20_HK1073", inf_route == "Index", DPI == "d02"), 
+       aes(x = diet, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  PlotTheme1
+# no samples from this cohort found
+
+#Sp19 samples are good, the stock is missing -> not in good samples
+```
+#compare stock -> index over DPI (expectation is more distant over time)
+```{r}
+ggplot(filter(dist_long_m, cohort == "W17", comp == "fW17_HK1073", inf_route == "Index"), 
+       aes(x = DPI, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, aes(color = diet)) +
+  PlotTheme1
+
+ggplot(filter(dist_long_m, cohort == "F17", comp == "fF17_HK1073", inf_route == "Index"), 
+       aes(x = DPI, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, aes(color = diet)) +
+  PlotTheme1
+
+ggplot(filter(dist_long_m, cohort == "Sm18", comp == "fSm18_HK1073", inf_route == "Index"), 
+       aes(x = DPI, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, aes(color = diet)) +
+  PlotTheme1
+```
+
+Add transmission data
+#compare lean -> lean transmission
+#compare d02 index -> all contact time points (do the contacts diverge from their donors over time)
+#compare last time point index - last time point contact
+```{r}
+ggplot(filter(dist_long_pairs, cohort.x == "Sm18" & cohort.y == "Sm18" & pair_numbers.x == pair_numbers.y, dist > 0), 
+       aes(x = inf_route.x, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, aes(color = diet.x)) +
+  facet_grid(~pair_diets.x) +
+  PlotTheme1
+```

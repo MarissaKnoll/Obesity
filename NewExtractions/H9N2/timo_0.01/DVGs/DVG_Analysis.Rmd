@@ -1,0 +1,685 @@
+---
+title: "DVG_Analysis"
+output: html_notebook
+---
+
+Kate's DVG code
+
+```{r}
+message("Loading packages")
+library('ggplot2')
+library('readr')
+library('reshape2')
+library('ggpubr')
+library('plyr')
+library('tidyverse')
+library('dplyr')
+library('glue')
+```
+
+```{r}
+# paramters used when running divrge
+grouping_param = 5
+match_length_param = 28
+readLength = 150
+
+# deletion read count cutoffs
+count_cut = 30
+
+# only looking at index and direct cases
+keeping = c('index','direct')
+```
+
+```{r}
+message("Setting work directory and input file names")
+wkdir = "/Users/marissaknoll/Desktop/GitHub/Obesity/NewExtractions/H9N2/DVGs"
+setwd(wkdir)
+```
+
+```{r}
+if (!dir.exists(glue("{wkdir}/DVG_figures"))) {
+        dir.create(glue("{wkdir}/DVG_figures"))
+      }
+
+saveitdir = glue("{wkdir}/DVG_figures")
+```
+
+```{r}
+source(glue('{wkdir}/scripts/obese_PlotPrep.R'))
+```
+
+```{r}
+# loading in metadata and coverage data
+metafile = glue('{wkdir}/scripts/transmission_h9n2_use_long.csv')
+meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
+coverage_passfile = glue('{wkdir}/scripts/H9N2.coverage.pass.check.200.0.95.csv')
+cov_check = read.csv(file=coverage_passfile,header=T,sep=",",na.strings = c(''))
+```
+
+```{r}
+# filter for samples that either pass with a yes OR has good average coverage and percentage cov at 200x is > 80
+cov_filt_names = cov_check %>% filter(pass == 'YES' | 
+                                      mean_coverage >= 500  | 
+                                      percentage > 0.7) %>% 
+            select(name, segment) %>% 
+            unique()
+
+# check segment count
+cov_filt_names = cov_filt_names %>% group_by(name) %>% add_tally(name = 'segment_tally') %>% 
+                    ungroup() %>% 
+                    filter(segment_tally == 8) %>% 
+                    unique() 
+
+pull_names = c(levels(factor(cov_filt_names$name)))  # list to pull names from
+```
+
+```{r}
+dvgfile = glue('{wkdir}/H9N2.DVG.FINAL.OneGap.N5.Mis2.M28.G5.csv') # dvg file
+dvg = read.csv(file=dvgfile,header=T,sep=",",na.strings = c(''))
+
+dvg = dvg %>% filter(name %in% pull_names) # filter for samples that pass our coverage checks
+dvg$sample = dvg$name  # generate new column so we can separate
+dvg = dvg %>% separate(sample, c('new','cohort','ferret_id','dpi','rep'), '_')  # separate into info
+
+CONTROLS = dvg %>% filter(ferret_id == 'HK1073')  # pulling out controls
+CONTROLS$rep = CONTROLS$dpi
+CONTROLS$dpi = 'stock'  # adding in stock info
+
+dvg = dvg %>% filter(!name %in% c(levels(factor(CONTROLS$name)))) %>% unique()
+
+dvg = rbind(dvg, CONTROLS) # rbind everything so it is all in one dataframe
+```
+
+```{r}
+# prepping rep information
+dvg = dvg %>% select(-SegTotalDVG) %>% filter(DVG_freq >= count_cut) %>% unique()  # filter for those that pass cutoffs
+rep1 = dvg %>% filter(rep == 'rep1') %>% unique()
+rep2 = dvg %>% filter(rep == 'rep2') %>% unique()
+```
+
+```{r}
+# merge reps into one
+dvg_reps = merge(rep1, rep2, by = c('cohort','ferret_id','dpi',
+                                   'segment','segment_size','strain',
+                                   'DVG_group','NewGap',
+                                   'NewStart','NewEnd','GroupBoundaries',
+                                   'DeletionSize','EstimatedFragLength'), all = TRUE) %>% unique()
+```
+
+```{r}
+# add in zeros
+dvg_reps$DVG_freq.x[is.na(dvg_reps$DVG_freq.x)] = 0
+dvg_reps$DVG_freq.y[is.na(dvg_reps$DVG_freq.y)] = 0
+```
+
+```{r}
+ggplot(dvg_reps, aes(x=DVG_freq.x, y=DVG_freq.y)) + 
+    geom_point() + 
+    PlotTheme1
+```
+
+```{r}
+# number of samples?
+levels(factor(dvg_reps$ferret_id)) %>% length()
+```
+
+```{r}
+# reorder by segment size
+SEGMENTS = c('H9N2_PB2', 'H9N2_PB1',
+            'H9N2_PA','H9N2_HA','H9N2_NP', 
+            'H9N2_NA','H9N2_MP','H9N2_NS')
+
+cov_check$segment = factor(cov_check$segment, levels = SEGMENTS)
+```
+
+```{r}
+cov_check %>% 
+    filter(name %in% pull_names) %>%
+    ggplot(., aes(x= segment, y = mean_coverage)) + 
+    geom_boxplot() + 
+    PlotTheme1
+
+cov_check %>% 
+    filter(name %in% pull_names) %>%
+    ggplot(., aes(x= segment, y = median_coverage)) + 
+    geom_boxplot() + 
+    PlotTheme1
+
+cov_check %>% 
+    filter(name %in% pull_names) %>%
+    ggplot(., aes(x= segment, y = percentage)) + 
+    geom_boxplot() + 
+    PlotTheme1
+```
+
+```{r}
+df = cov_filt_names %>% select(-segment, -segment_tally) %>% unique()
+
+df$sample = df$name
+
+df = df %>% separate(sample, c('new','cohort','ferret_id','dpi','rep'), '_')
+
+CONTROLS = df %>% filter(ferret_id == 'HK1073')
+
+CONTROLS$rep = CONTROLS$dpi
+
+CONTROLS$dpi = 'stock'
+
+
+df = df %>% filter(!name %in% c(levels(factor(CONTROLS$name)))) %>% unique()
+
+df = rbind(df, CONTROLS)
+
+r1 = df %>% filter(rep == 'rep1') %>% select(-new) %>% unique()
+r2 = df %>% filter(rep == 'rep2') %>% select(-new) %>% unique()
+reps = merge(r1, r2, by = c('cohort','ferret_id','dpi')) %>% unique()
+
+
+# these are the samples that only had one rep!
+setdiff(levels(factor(r1$ferret_id)),
+       levels(factor(r2$ferret_id)))
+```
+
+```{r}
+setdiff(meta$ferret_id, reps$ferret_id)  # samples in meta not in seq data
+setdiff(reps$ferret_id, meta$ferret_id) # samples in seq data not in meta
+
+m = merge(meta, reps, by = c('ferret_id'), all = TRUE)
+
+write.csv(m, glue('{wkdir}/scripts/UPDATED.H9N2.metadata.csv'), row.names = FALSE)
+
+m = merge(meta, reps, by = c('ferret_id'))
+```
+
+```{r}
+temp = meta %>% 
+        filter(type %in% c('index','direct')) %>% 
+        unique() %>% 
+        select(pair, type, ferret_id) %>% unique() %>% 
+        pivot_wider(names_from = 'type', values_from = 'ferret_id')
+
+temp = rbind(temp, c('Z','stock','stock'))
+
+temp$pair_ids = paste0(temp$index,'>',temp$direct)
+
+temp = temp  %>% select(pair, pair_ids) %>% unique()
+
+m = merge(m, temp, by = c('pair'))  # add in additional information to metadata to work with
+```
+
+```{r}
+# type check - only stock index direct
+print(levels(factor(m$type)))
+```
+
+```{r}
+m$type = factor(m$type, levels = c('stock','index','direct'))
+```
+
+```{r}
+p1 = m %>% filter(ferret_id != 'HK1073') %>% unique() %>% 
+    ggplot(., aes(x= dpi, y = pair_ids, fill = ferret_weight)) + 
+    geom_tile(color = 'black') + 
+    PlotTheme3 +
+    weight_colFill + 
+    facet_grid(index_direct~type, scales = 'free', space = 'free')
+
+print(p1)
+
+ggsave(p1,
+       filename = glue("{wkdir}/DVG_figures/final.samples.pdf"),
+       width = 6,
+       height = 6, limitsize=FALSE, useDingbats = FALSE)
+
+ggsave(p1,
+       filename = glue("{wkdir}/DVG_figures/final.samples.png"),
+       width = 6,
+       height = 6, limitsize=FALSE) #, useDingbats = FALSE)
+```
+
+```{r}
+dvg_reps = dvg_reps %>% 
+            filter(DVG_freq.x > count_cut & DVG_freq.y > count_cut) %>% 
+        unique()   # make sure that both reps pass our cutoff
+
+# add in variables for plotting
+dvg_reps$ferret_day = paste0(dvg_reps$ferret_id, '_', dvg_reps$dpi)  
+
+m$ferret_day = paste0(m$ferret_id, '_', m$dpi)
+```
+
+```{r}
+stock_temp = dvg_reps %>% filter(dpi == 'stock') %>%
+    group_by(ferret_id, cohort, dpi, segment, name.x, name.y) %>%
+    add_tally(name = 'seg_deletion_richness') %>%
+    unique() %>%
+    ungroup() %>% 
+    group_by(ferret_id, dpi, name.x, name.y, cohort) %>% 
+    add_tally(name = 'deletion_richness') %>%
+    ungroup() %>% 
+    unique()
+
+s = stock_temp  # will use later
+
+# filter down stock temp information
+stock_temp = stock_temp %>% 
+            select(ferret_id, dpi, cohort,ferret_day, segment, deletion_richness, seg_deletion_richness) %>%
+            unique()
+
+
+stock_temp = merge(stock_temp, m, by = c('ferret_id', 'dpi','cohort','ferret_day')) %>% 
+    unique()
+```
+
+```{r}
+# filter out stock information, calculate dvg richness by segment and across genome for samples
+
+dr = dvg_reps %>% 
+            filter(dpi != 'stock') %>% 
+            unique() %>% 
+            group_by(ferret_id, dpi, segment, name.x, name.y, cohort) %>%
+            add_tally(name = 'seg_deletion_richness') %>%
+            ungroup() %>% 
+            group_by(ferret_id, dpi, name.x, name.y, cohort) %>% 
+            add_tally(name = 'deletion_richness') %>%
+            ungroup() %>% 
+            unique()
+
+# filter down information so you don't have duplicates
+richness = dr %>% 
+            select(ferret_id, dpi, cohort,ferret_day, segment, deletion_richness, seg_deletion_richness) %>%
+            unique()
+
+# merge with metadata info
+richness = merge(richness, m, by = c('ferret_id', 'dpi','cohort','ferret_day'), all.y = TRUE) %>%
+    unique()
+
+# make sure we filter out stock information (will add using the 's' dataframe generated above)
+richness = richness %>% filter(dpi != 'stock')
+
+reps_df = rbind(dr, s) # final reps richness df
+
+reps_df = merge(reps_df, m, by = c('ferret_id','dpi','cohort','ferret_day'))  # add metadata
+```
+
+```{r}
+p4 = reps_df %>% 
+    select(segment, NewGap, EstimatedFragLength) %>%
+    unique() %>%
+    ggplot(., aes(x= EstimatedFragLength)) + 
+    geom_histogram(color = 'black') + 
+    PlotTheme1 +
+    labs(x="estimated DVG frag. length (nt)", y='number of unique DVG species') 
+    
+
+print(p4)
+ggsave(p4,
+       filename = glue("{wkdir}/DVG_figures/deletion.size.pdf"),
+       width = 5,
+       height = 5, limitsize=FALSE, useDingbats = FALSE)
+
+ggsave(p4,
+       filename = glue("{wkdir}/DVG_figures/deletion.size.png"),
+       width =5,
+       height = 5, limitsize=FALSE) #, useDingbats = FALSE)
+```
+
+```{r}
+lean_index =  reps_df %>% filter(type == 'index' & ferret_weight == 'lean') %>% 
+                unique() %>%
+                group_by(NewGap, segment, NewStart, NewEnd) %>%
+            add_tally(name = 'lean_deletion_count') %>%
+    ungroup() %>%
+    select(NewGap, segment, lean_deletion_count) %>%
+    unique()
+
+
+obese_index =  reps_df %>% filter(type == 'index' & ferret_weight == 'obese') %>% 
+                unique() %>%
+                group_by(NewGap, segment, NewStart, NewEnd) %>%
+            add_tally(name = 'obese_deletion_count') %>%
+    ungroup() %>%
+    select(NewGap, segment, obese_deletion_count) %>%
+    unique()
+
+
+df = merge(lean_index, obese_index, by = c('NewGap','segment'), all = TRUE) 
+
+head(df)
+
+df$lean_deletion_count[is.na(df$lean_deletion_count)] = 0
+
+df$obese_deletion_count[is.na(df$obese_deletion_count)] = 0
+```
+
+```{r}
+p8 = reps_df %>% filter(type == 'index') %>% 
+                unique() %>%
+                group_by(NewGap, segment, NewStart, NewEnd) %>%
+            add_tally(name = 'sample_count') %>%
+    ungroup() %>%
+    select(NewGap, segment,sample_count) %>%
+    unique()  %>%
+    ggplot(., aes(x=sample_count, y = ..count../sum(..count..))) +
+    geom_histogram(color ='black') + 
+    labs(x='number of samples with DVG type', y='proportion of DVGs in dataset (index only)') + 
+    PlotTheme1 
+
+print(p8)
+ggsave(p8,
+       filename = glue("{wkdir}/DVG_figures/sample.count.histo.pdf"),
+       width = 5,
+       height = 5, limitsize=FALSE, useDingbats = FALSE)
+
+ggsave(p8,
+       filename = glue("{wkdir}/DVG_figures/sample.count.histo.png"),
+       width =5,
+       height = 5, limitsize=FALSE) #, useDingbats = FALSE)
+```
+
+```{r}
+reps_df$ave_dvg_freq = (reps_df$DVG_freq.x + reps_df$DVG_freq.y)/2
+```
+
+```{r}
+reps_df = reps_df %>% 
+  arrange(ferret_day, ave_dvg_freq) %>% 
+  group_by(ferret_day) %>% 
+  mutate(order_number = row_number()) %>% 
+  ungroup() %>%
+  unique()
+```
+
+```{r}
+reps_df %>% 
+    group_by(NewGap, segment, type, ferret_weight) %>%
+    mutate(mean_order = mean(order_number),
+          sample_count = n(),
+          min_order = min(order_number),
+          max_order = max(order_number),
+          median_ord = median(order_number)) %>%
+    ungroup() %>%
+    unique() %>%
+    select(segment, NewGap, mean_order, sample_count, min_order, max_order, median_ord, type, ferret_weight) %>%
+    filter(sample_count > 1) %>%
+    unique() %>%
+    ggplot(., aes(y=mean_order, x = sample_count)) + 
+    geom_point() + 
+    PlotTheme1 + 
+    facet_grid(.~ferret_weight + type)
+```
+
+```{r}
+top_ten = reps_df %>% filter(order_number %in% c(1, 2,3 ,4, 5, 6, 7, 8, 9, 10)) %>% unique()
+
+head(top_ten)
+
+length(levels(factor(top_ten$NewGap)))
+```
+
+```{r}
+max(df$lean_deletion_count)
+max(df$obese_deletion_count)
+
+p9 = ggplot(df, aes(x=lean_deletion_count, y = obese_deletion_count)) + 
+    geom_jitter(width = 0.1, height = 0.1, alpha = 0.3) + 
+    geom_hline(yintercept = 0, linetype = 2, color = 'black') +
+    geom_hline(yintercept = 25, linetype = 2, color = 'red') +
+    geom_vline(xintercept = 0, linetype = 2, color = 'black') +
+    geom_vline(xintercept = 17, linetype = 2, color = 'red') +
+    labs(x= 'number of lean samples with DVG', y='number of obese samples with DVG') + 
+    PlotTheme1 
+
+print(p9)
+ggsave(p9,
+       filename = glue("{wkdir}/DVG_figures/sample.count.lean.v.obese.pdf"),
+       width = 5,
+       height = 5, limitsize=FALSE, useDingbats = FALSE)
+
+ggsave(p9,
+       filename = glue("{wkdir}/DVG_figures/sample.count.lean.v.obese.png"),
+       width =5,
+       height = 5, limitsize=FALSE) #, useDingbats = FALSE)
+```
+
+```{r}
+reps_df %>% filter(type == 'index' & ferret_weight == 'obese') %>% select(name.x.x) %>% unique() %>% nrow()
+reps_df %>% filter(type == 'index' & ferret_weight == 'lean') %>% select(name.x.x) %>% unique() %>% nrow()
+```
+
+```{r}
+richness = rbind(richness, stock_temp)
+richness$deletion_richness[is.na(richness$deletion_richness)] = 0
+DAYS = c('stock','d02','d04','d06','d08','d10','d12')
+```
+
+```{r}
+richness$cohort = gsub("FCC","Sp19",richness$cohort)
+richness$dpi = factor(richness$dpi, levels = DAYS)
+richness %>% filter(dpi %in% c('d02','d04')) %>%
+        filter(type == 'index' | type == 'stock') %>%
+    select(ferret_id, dpi, deletion_richness, type, ferret_weight, index_direct, cohort) %>%
+    unique() %>%
+    group_by(ferret_id) %>%
+    add_tally(name = 'n') %>%
+    ungroup() %>%
+    filter(n >= 2) %>% 
+    ungroup() %>%
+    unique() %>%
+    ggplot(., aes(x=dpi, y = deletion_richness, color = cohort, group=ferret_id, shape = ferret_weight)) + 
+    #geom_boxplot() + 
+    geom_line() + 
+    geom_point(size = 2) + 
+    PlotTheme1 +
+    scale_color_brewer(palette = 'Set1')
+    #weight_colScale + 
+    #facet_grid(.~cohort)
+
+
+p7 = richness %>% filter(dpi %in% c('d02','d04','d06')) %>%
+        filter(type == 'index' | type == 'stock') %>%    
+    select(ferret_id, dpi, deletion_richness, type, ferret_weight, index_direct, cohort) %>%
+    unique() %>%
+    group_by(ferret_id) %>%
+    add_tally(name = 'n') %>%
+    ungroup() %>%
+    filter(n >= 2) %>% 
+    ungroup() %>%
+    unique() %>%
+    ggplot(., aes(x=dpi, y = deletion_richness, color = ferret_weight, group=ferret_id, shape = ferret_weight)) + 
+    #geom_boxplot() + 
+    geom_line() + 
+    geom_point(size = 2) + 
+    PlotTheme1 +
+    weight_colScale
+    #facet_grid(.~cohort)
+
+print(p7)
+ggsave(p7,
+       filename = glue("{wkdir}/DVG_figures/richness.index.pdf"),
+       width = 5,
+       height = 5, limitsize=FALSE, useDingbats = FALSE)
+
+ggsave(p7,
+       filename = glue("{wkdir}/DVG_figures/richness.index.png"),
+       width =5,
+       height = 5, limitsize=FALSE) #, useDingbats = FALSE)
+```
+
+```{r}
+colnames(richness)
+order_typeday = c('stock','index_d02','index_d04',
+                 'index_d06','index_d08','index_d10',
+                 'index_d12',
+                 'direct_d02','direct_d04',
+                 'direct_d06','direct_d08','direct_d10',
+                 'direct_d12')
+```
+
+```{r}
+richness$type_day = paste0(richness$type, '_', richness$dpi)
+richness$type_day = factor(richness$type_day, levels = order_typeday)
+
+p2 = richness %>% filter(ferret_weight == 'obese' & index_direct == 'obese_obese') %>%
+    select(ferret_id, dpi, deletion_richness, type, ferret_weight, 
+           pair_ids, index_direct, type_day) %>%
+    ungroup() %>%
+    unique() %>%
+    ggplot(., aes(x=type_day, y = deletion_richness, color = pair_ids, group=pair_ids)) + 
+    #geom_boxplot() + 
+    geom_line(size = 1) + 
+    geom_point(size = 2) + 
+    labs(x='dpi (by index case)', y='DVG richness') + 
+    PlotTheme1 +
+    scale_color_brewer(palette = 'Set2') #+
+    #weight_colScale + 
+    #facet_grid(.~type)
+
+print(p2)
+ggsave(p2,
+       filename = glue("{wkdir}/DVG_figures/obese.to.obese.diversity.pdf"),
+       width = 8,
+       height = 6, limitsize=FALSE, useDingbats = FALSE)
+
+ggsave(p2,
+       filename = glue("{wkdir}/DVG_figures/obese.to.obese.diversity.png"),
+       width =8,
+       height = 6, limitsize=FALSE) #, useDingbats = FALSE)
+```
+
+```{r}
+seg_rich = richness %>% #filter(ferret_weight == 'obese' & index_direct == 'obese_obese') %>%
+    select(ferret_id, dpi, seg_deletion_richness, type, ferret_weight, 
+           pair_ids, index_direct, type_day, segment) %>%
+    unique()
+
+head(seg_rich)
+
+temp = seg_rich %>% select(ferret_id, dpi, type, ferret_weight, pair_ids, type_day, index_direct) %>% unique()
+temp$H9N2_PB2 = 0
+temp$H9N2_PB1 = 0
+temp$H9N2_PA = 0
+temp$H9N2_HA = 0
+temp$H9N2_NP = 0
+temp$H9N2_NA = 0
+temp$H9N2_MP = 0
+temp$H9N2_NS = 0
+
+temp = pivot_longer(temp, cols = all_of(SEGMENTS), names_to = 'segment') %>% select(-value)
+
+seg_rich = merge(seg_rich, temp, by = c('ferret_id', 'dpi', 'type', 'ferret_weight', 
+           'pair_ids', 'index_direct', 'type_day', 'segment'), all = TRUE) 
+
+seg_rich$seg_deletion_richness[is.na(seg_rich$seg_deletion_richness)] = 0
+
+seg_rich$segment = factor(seg_rich$segment, levels = SEGMENTS)
+head(seg_rich)
+```
+
+```{r}
+p3 = seg_rich %>% filter(segment %in% SEGMENTS) %>%
+    ggplot(., aes(x=segment, y = seg_deletion_richness)) + 
+    geom_boxplot() + 
+    labs(x='segment',y='deletion richness') + 
+    PlotTheme1 
+
+print(p3)
+
+ggsave(p3,
+       filename = glue("{wkdir}/DVG_figures/segment.richness.pdf"),
+       width = 5,
+       height = 5, limitsize=FALSE, useDingbats = FALSE)
+
+ggsave(p3,
+       filename = glue("{wkdir}/DVG_figures/segment.richness.png"),
+       width =5,
+       height = 5, limitsize=FALSE) #, useDingbats = FALSE)
+```
+
+```{r}
+seg_rich$seg_weight = paste0(seg_rich$segment, '_', seg_rich$ferret_weight)
+seg_rich$ferret_weight = factor(seg_rich$ferret_weight, levels = c('stock','lean','obese'))
+```
+
+```{r}
+seg_rich %>% filter(segment %in% SEGMENTS) %>%
+    ggplot(., aes(x=segment, y = seg_deletion_richness, group = seg_weight, color = ferret_weight)) + 
+    geom_boxplot() + 
+    labs(x='segment',y='deletion richness') + 
+    PlotTheme1 +
+    weight_colScale +
+    facet_grid(.~type)
+
+
+p6 = seg_rich %>% filter(segment %in% SEGMENTS & dpi %in% c('d02','d04','d06')) %>%
+    filter(type == 'index') %>%
+    ggplot(., aes(x=segment, y = seg_deletion_richness, group = seg_weight, color = ferret_weight)) + 
+    geom_boxplot() + 
+    labs(x='segment',y='deletion richness') + 
+    PlotTheme1 +
+    weight_colScale +
+    facet_grid(.~dpi)
+
+print(p6)
+
+ggsave(p6,
+       filename = glue("{wkdir}/DVG_figures/segment.index.richness.pdf"),
+       width = 8,
+       height = 4, limitsize=FALSE, useDingbats = FALSE)
+
+ggsave(p6,
+       filename = glue("{wkdir}/DVG_figures/segment.index.richness.png"),
+       width =8,
+       height = 4, limitsize=FALSE) #, useDingbats = FALSE)
+```
+Test for significance
+```{r}
+o = filter(seg_rich, type == "index" & dpi == "d06" & segment == "H9N2_NS" & ferret_weight == "obese")
+l = filter(seg_rich, type == "index" & dpi == "d06" & segment == "H9N2_NS" & ferret_weight == "lean")
+t.test(o$seg_deletion_richness,l$seg_deletion_richness)
+```
+
+```{r}
+seg_rich %>% filter(type == 'index' &  segment %in% SEGMENTS) %>%
+    ungroup() %>%
+    unique() %>%
+    ggplot(., aes(x=type_day, y = seg_deletion_richness, color = segment, group=segment)) + 
+    #geom_boxplot() + 
+    geom_line(size = 1) + 
+    geom_point(size = 2) + 
+    labs(x='dpi (by index case)', y='DVG richness') + 
+    PlotTheme1 +
+    scale_color_brewer(palette = 'Set2') +
+    #weight_colScale + 
+    facet_grid(.~ferret_weight + ferret_id, scales = 'free', space = 'free')
+```
+
+```{r}
+p4 = seg_rich %>% filter(ferret_weight == 'obese' & index_direct == 'obese_obese' & segment %in% SEGMENTS) %>%
+    ungroup() %>%
+    unique() %>%
+    ggplot(., aes(x=type_day, y = seg_deletion_richness, color = segment, group=segment)) + 
+    #geom_boxplot() + 
+    geom_line(size = 1) + 
+    geom_point(size = 2) + 
+    labs(x='dpi (by index case)', y='DVG richness') + 
+    PlotTheme1 +
+    scale_color_brewer(palette = 'Set2') +
+    #weight_colScale + 
+    facet_grid(.~pair_ids, scales = 'free', space = 'free')
+
+print(p4)
+
+
+ggsave(p4,
+       filename = glue("{wkdir}/DVG_figures/segment.obese.to.obese.richness.pdf"),
+       width = 12,
+       height = 4, limitsize=FALSE, useDingbats = FALSE)
+
+ggsave(p4,
+       filename = glue("{wkdir}/DVG_figures/segment.obese.to.obese.richness.png"),
+       width =12,
+       height = 4, limitsize=FALSE) #, useDingbats = FALSE)
+```
+
+End of Kate's code

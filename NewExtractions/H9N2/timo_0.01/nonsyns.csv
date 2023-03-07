@@ -1,0 +1,17 @@
+"","CHROM","ntvar","aavar","diet","totalsamp"
+"1","HA","C802T","L268F","Lean",2
+"2","HA","G808A","G270R","Lean",2
+"3","NS","G294A","M98I","Lean",2
+"4","PB1","T1604C","I535T","Lean",2
+"5","PB1","G738A","M246I","Lean",2
+"6","NA","C92T","T31M","Lean",2
+"7","HA","A1531T","I511L","Lean",2
+"8","HA","C383A","S128Y","Obese",2
+"9","HA","A658G","T220A","Obese",2
+"10","NA","G72A","M24I","Obese",2
+"11","NS","A719G","N240S","Obese",2
+"12","PB2","A1351T","I451F","Obese",2
+"13","PB2","A482G","D161G","Obese",2
+"14","NP","T911C","F304S","Obese",2
+"15","PB1","T905C","V302A","Obese",2
+"16","PA","C1782A","S594R","Obese",2

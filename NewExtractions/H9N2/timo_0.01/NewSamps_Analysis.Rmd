@@ -1,0 +1,1706 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+Merging transmission pair data gets rid of all of W17 ferrets - avoid this
+
+```{r}
+library("tidyr")
+library('ggplot2')
+library('dplyr')
+library("ggVennDiagram")
+library("glue")
+
+wkdir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2"
+setwd(wkdir)
+savedir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/Output_Figures"
+
+source("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/FD_functions.R")
+```
+
+```{r}
+diet = c("Obese","Lean","Control")
+dietColors = c("#FF9933","#66CCFF","#606060")
+names(dietColors) = diet
+DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
+DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
+```
+
+#Loading metadata
+This includes titer and Ct values when applicable. ND indicates qPCR was run with a negative result; 0 indicates plaque assay or HAI was run with a negative result. NA for any values indicate that data was missing. Sacrificed indicates there was no data at that time point because the ferret had already been sacrficied for pathology. 
+```{r}
+metafile = "H9_Metadata.csv"
+
+meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
+meta = filter(meta, resequenced == "yes")
+
+meta$Ct_Mgene = as.numeric(meta$Ct_Mgene)
+meta$titer = as.numeric(meta$titer)
+meta$log10_titer = as.numeric(meta$log10_titer)
+
+meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
+```
+
+# Pre Sequence Analysis
+
+Ct & Titer Analysis
+```{r}
+meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
+
+CT_plot = ggplot(filter(meta, inf_route == "Index" | inf_route == "Contact"), 
+       aes(x = DPI, y = Ct_Mgene, color = as.character(ferretID))) +
+  geom_point(size = 3) +
+  geom_line(aes(group = ferretID), size = 1.5) +
+  geom_hline(yintercept = 30, linetype = "dotted") +
+  facet_grid(diet~inf_route) +
+  PlotTheme1
+print(CT_plot)
+ggsave("CT_plot.png",CT_plot, path = savedir, width = 15, height = 7)
+
+Titers_plot = ggplot(filter(meta, inf_route == "Index" | inf_route == "Contact"), 
+       aes(x = DPI, y = log10_titer, color = as.character(ferretID))) +
+  geom_point(size = 3) +
+  geom_line(aes(group = ferretID), size = 1.5) +
+  ylim(0,7) +
+  facet_grid(diet~inf_route) +
+  PlotTheme1
+print(Titers_plot)
+ggsave("Titers_plot.png",Titers_plot, path = savedir, width = 15, height = 7)
+```
+
+# Sequencing Analysis
+
+Specifying thresholds and plotting variables
+```{r}
+cov_cut = 200
+freq_cut = 0.01
+pvalcut  = 0.05
+
+ntlist = c("A","C","G","T")
+SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
+```
+
+Loading in coverage file & segment size information
+```{r}
+cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
+
+seg_sizes = "SegmentSize.csv"
+sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
+GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
+
+cov$segment = factor(cov$segment, levels = SEGMENTS)
+```
+
+Checking if data passes thresholds & make coverage plots
+```{r}
+cov_check = CoverageAcross(cov,cov_cut,70,sizes, wkdir)
+```
+
+```{r}
+cov_qual = select(cov_check, name, quality)
+cov_avgtiter = merge(cov, cov_qual, by = c("name"))
+
+cov_avgtiter$totalcount[is.na(cov_avgtiter$totalcount)] = 0
+cov_avgt = group_by(cov_avgtiter,segment,ntpos,quality) %>%
+  mutate(avg_cov = mean(totalcount))
+
+avg_titer_plot = ggplot(cov_avgt, aes(x = ntpos, y = avg_cov, color = quality)) +
+  geom_line() +
+  facet_grid(~segment) +
+  PlotTheme1
+print(avg_titer_plot)
+ggsave("avg_titer_plot.pdf",avg_titer_plot,path = savedir, width = 10, height = 5)
+```
+
+Merging coverage check info with the rest of the metadata
+```{r}
+meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"), all.y = TRUE)
+
+nrow(meta)
+count(meta,quality)
+```
+
+# Making titer plots
+```{r}
+ggplot(filter(meta, DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" |DPI == "d10" | DPI == "d12"),
+       aes(x = DPI, y = log10_titer, color = diet)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(~inf_route) +
+  PlotTheme1 +
+  DietcolScale
+
+# don't have titer information for W17 cohort (probably were never measured)
+# don't have this info past day 6 for some ferrets sacrificed for pathology at St Jude's
+
+m1 = filter(meta, titer != "NA" & titer != "sacrificed") %>%
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
+  group_by(inf_route, diet, DPI,cohort) %>%
+  mutate(avg_titer = mean(titer)) %>%
+  mutate(avg_log_titer = mean(log10_titer)) %>%
+  ungroup()
+
+avg_titer = ggplot(filter(m1, inf_route == "Index" | inf_route == "Contact"), 
+              aes(x = DPI, y = avg_log_titer, color = cohort)) +
+  geom_point(size = 3) +
+  geom_line(aes(group = cohort), size = 1.5) +
+  facet_grid(diet~inf_route) +
+  ylim(0,6) + 
+  PlotTheme1 #+
+#  DietcolScale
+print(avg_titer)
+ggsave("avg_titer.pdf", avg_titer, path = savedir, width = 10, height = 5)
+
+m1_good = filter(meta, quality == "good") %>% 
+  filter(titer != "NA" & titer != "sacrificed") %>%
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
+  group_by(inf_route, diet, DPI) %>%
+  mutate(avg_titer = mean(titer)) %>%
+  mutate(avg_log_titer = mean(log10_titer)) %>%
+  ungroup()
+
+avg_titer_nozeroes = ggplot(filter(m1_good,inf_route == "Index" | inf_route == "Contact"), 
+              aes(x = DPI, y = avg_log_titer, color = diet)) +
+  geom_point(size = 3) +
+  geom_line(aes(group = diet), size = 1.5) +
+  facet_grid(~inf_route) +
+  ylim(0,6) + 
+  PlotTheme1 +
+  DietcolScale
+print(avg_titer_nozeroes)
+ggsave("avg_titer_nozeroes.pdf",avg_titer_nozeroes,path = savedir,width = 7, height = 5)
+
+m1_all = filter(meta, titer != "NA" & titer != "sacrificed") %>%
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
+  group_by(diet, DPI) %>%
+  mutate(avg_titer = mean(titer)) %>%
+  mutate(avg_log_titer = mean(log10_titer)) %>%
+  ungroup()
+
+avg_titer_all = ggplot(filter(m1_all,inf_route == "Index" | inf_route == "Contact"), 
+              aes(x = DPI, y = avg_log_titer, color = diet)) +
+  geom_point(size = 3) +
+  geom_line(aes(group = diet), size = 1.5) +
+  ylim(0,6) + 
+  PlotTheme1 +
+  DietcolScale
+print(avg_titer_all)
+
+m1_all_good = filter(meta, quality == "good") %>% 
+  filter(titer != "NA" & titer != "sacrificed") %>%
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
+  group_by(diet, DPI) %>%
+  mutate(avg_titer = mean(titer)) %>%
+  mutate(avg_log_titer = mean(log10_titer)) %>%
+  ungroup()
+
+avg_titer_all_good= ggplot(filter(m1_all_good,inf_route == "Index" | inf_route == "Contact"), 
+              aes(x = DPI, y = avg_log_titer, color = diet)) +
+  geom_point(size = 3) +
+  geom_line(aes(group = diet), size = 1.5) +
+  ylim(0,6) + 
+  PlotTheme1 +
+  DietcolScale
+print(avg_titer_all_good)
+```
+
+```{r}
+ggplot(filter(m1, DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12"),
+       aes(x = DPI, y = Ct_Mgene)) +
+  geom_point()
+```
+
+```{r}
+ggplot(filter(m1, DPI == "d02" | DPI == "d04" | DPI == "d06" |
+                DPI == "d08" | DPI == "d10" | DPI == "d12"),
+       aes(x = log10_titer, y = Ct_Mgene)) +
+  geom_point() +
+  xlim(0,8) +
+  PlotTheme1
+
+ggplot(filter(m1, log10_titer > 1), aes(x = log10_titer, y = Ct_Mgene)) +
+  geom_point() +
+  xlim(0,8) +
+  PlotTheme1
+```
+
+```{r}
+ggplot(meta, aes(x = quality, y = log10_titer)) +
+  geom_point()
+```
+
+```{r}
+ggplot(meta, aes(x = quality, y = Ct_Mgene)) +
+  geom_point()
+
+Ct_dist_plot = ggplot(meta, aes(x = Ct_Mgene, fill = quality)) +
+  geom_histogram(binwidth = 1) +
+  geom_vline(xintercept = 32, linetype = "dashed") +
+  PlotTheme1 +
+  ylab("Number of samples")
+print(Ct_dist_plot)
+ggsave("Ct_dist_plot.pdf",Ct_dist_plot,path = savedir, width = 7, height = 5)
+```
+
+Using Ct_Mgene = 32 as 1X genome copy cutoff
+```{r}
+meta_Ct1 = filter(meta, Ct_Mgene < 32) %>%
+  droplevels()
+meta_Ct2 = filter(meta, Ct_Mgene > 32) %>%
+  droplevels()
+meta_Ct2$Ct_Mgene = 32
+
+meta_Ct = rbind(meta_Ct1, meta_Ct2)
+```
+
+Adding genome copy number info
+```{r}
+Ct32 = filter(meta_Ct, Ct_Mgene == 32)
+Ct32$genomecopy = 1
+
+Ct31 = filter(meta_Ct, Ct_Mgene <= 32 & Ct_Mgene > 31)
+Ct31$genomecopy = 2
+
+Ct30 = filter(meta_Ct, Ct_Mgene <= 31 & Ct_Mgene > 30)
+Ct30$genomecopy = 4
+
+Ct29 = filter(meta_Ct, Ct_Mgene <= 30 & Ct_Mgene > 29)
+Ct29$genomecopy = 8
+
+Ct28 = filter(meta_Ct, Ct_Mgene <= 29 & Ct_Mgene > 28)
+Ct28$genomecopy = 16
+
+Ct27 = filter(meta_Ct, Ct_Mgene <= 28 & Ct_Mgene > 27)
+Ct27$genomecopy = 32
+
+Ct26 = filter(meta_Ct, Ct_Mgene <= 27 & Ct_Mgene > 26)
+Ct26$genomecopy = 64
+
+Ct25 = filter(meta_Ct, Ct_Mgene <= 26 & Ct_Mgene > 25)
+Ct25$genomecopy = 128
+
+Ct24 = filter(meta_Ct, Ct_Mgene <= 25 & Ct_Mgene > 24)
+Ct24$genomecopy = 256
+
+Ct23 = filter(meta_Ct, Ct_Mgene <= 24 & Ct_Mgene > 23)
+Ct23$genomecopy = 512
+
+Ct22 = filter(meta_Ct, Ct_Mgene <= 23 & Ct_Mgene > 22)
+Ct22$genomecopy = 1024
+
+Ct21 = filter(meta_Ct, Ct_Mgene <= 22 & Ct_Mgene > 21)
+Ct21$genomecopy = 2048
+```
+
+```{r}
+meta_Ct = rbind(Ct32,Ct31,Ct30,Ct29,Ct28,Ct27,Ct26,Ct25,Ct24,Ct23,Ct22,Ct21)
+```
+
+```{r}
+ggplot(meta_Ct, aes(x = Ct_Mgene, y = genomecopy)) +
+  geom_point() +
+  PlotTheme1
+```
+
+```{r}
+ggplot(meta_Ct, aes(x = log10_titer, y = genomecopy)) +
+  geom_point()
+```
+
+Loading in variant files
+```{r}
+varfile = "./varfiles/H9N2.VariantsOnly.0.01.200.csv"
+
+# read and rearrange the data
+vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
+vars$name = vars$sample
+```
+
+Rearranging variant dataframe
+```{r}
+vdf = ArrangeVarWRep(vars)
+# already have replicate data in the varfiles from running CompareReps.v2.py script
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+nrow(vdf)
+```
+
+Filtering variant df by timo binocheck
+```{r}
+vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
+vdf_bino = filter(vdf, binocheck != "False")
+vdf_bino = vdf_bino[!duplicated(vdf_bino), ] %>% droplevels()
+nrow(vdf_bino)
+# this really gets rid of a lot of variants (~1000)
+
+vdf_nobino = filter(vdf, binocheck != "True")
+vdf_nobino = vdf_nobino[!duplicated(vdf_nobino), ] %>% droplevels()
+nrow(vdf_nobino)
+
+range(vdf_nobino$minorfreq)
+ggplot(vdf_nobino, aes(x = minorfreq)) +
+  geom_histogram(binwidth = 0.01) +
+  PlotTheme1
+```
+
+Filtering variant df with frequency cutoffs
+```{r}
+vdf = filter(vdf, minorfreq1 >= freq_cut & 
+               minorfreq2 >= freq_cut & 
+               minor %in% ntlist &
+               major %in% ntlist) %>% 
+            droplevels()
+# based on MAF study, reps and 0.01% cutoff was best combo
+#filter each replicate separately rather than using the average
+
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+nrow(vdf)
+# does not eliminate any variants here
+```
+
+Adding metadata
+```{r}
+vdf = merge(vdf,meta, by = c("sample","segment"))
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+vdf$segment = factor(vdf$segment, levels = SEGMENTS)
+
+vdf = filter(vdf, inf_route == "Index" | inf_route == "Contact" | inf_route == "Control")
+# ignoring aerosol for now
+```
+
+```{r}
+vdf = filter(vdf, quality == "good")
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+good_names = c(levels(factor(vdf$sample)))
+```
+
+
+SNVs correlated to titer?
+```{r}
+vdf_count = group_by(vdf, sample, cohort, ferretID,DPI, inf_route, diet, STRAIN, resequenced, quality) %>%
+  tally()
+titer = select(meta, sample, titer)
+
+vdf_count_titer = merge(vdf_count,titer, by = c("sample"))
+vdf_count_titer = vdf_count_titer[!duplicated(vdf_count_titer), ]
+
+vdf_count_titer$log10titer = log10(vdf_count_titer$titer)
+vdf_count_titer$titer[is.na(vdf_count_titer$titer)] = 0
+vdf_count_titer$log10titer[is.na(vdf_count_titer$log10titer)] = 0
+
+
+vdf_count_titer_plot = ggplot(filter(vdf_count_titer, inf_route == "Index" | inf_route == "Contact"), 
+                              aes(x = log10titer, y = n, color = diet)) +
+  geom_point() +
+  xlim(0,7.5) +
+  geom_smooth(method = "glm") +
+  facet_grid(~inf_route) +
+  PlotTheme1 +
+  DietcolScale
+print(vdf_count_titer_plot)
+ggsave("vdf_count_titer_plot.pdf",vdf_count_titer_plot,path = savedir, width = 7, height = 5)
+```
+
+Tallying number of ferrets with variants
+```{r}
+fercount = select(vdf,sample,ferretID,DPI,diet,inf_route)
+fercount = fercount[!duplicated(fercount), ]  %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route,DPI) %>% 
+  tally()
+
+# Counting the number of ferrets with variants, just by ferretID not DPI
+filter(vdf, diet == "Lean" & inf_route == "Index") %>% count(ferretID)
+filter(vdf, diet == "Obese" & inf_route == "Index") %>% count(ferretID)
+filter(vdf, diet == "Lean" & inf_route == "Contact") %>% count(ferretID)
+filter(vdf, diet == "Obese" & inf_route == "Contact") %>% count(ferretID)
+```
+
+Plotting ferret tally
+```{r}
+ggplot(fercount, aes(x = DPI, y = n, fill = diet)) +
+  geom_col(position = "stack") +
+  facet_grid(~inf_route) +
+  ylab("Number of Ferrets with SNVs") +
+  PlotTheme3 +
+  DietcolScale_fill
+
+snv_count = group_by(filter(vdf, inf_route == "Index" | inf_route == "Contact"), sample, ferretID, DPI,inf_route,diet) %>%
+  tally() %>%
+  ggplot(., aes(x = n, fill = diet)) +
+  geom_histogram(binwidth = 5) +
+  facet_grid(diet~inf_route) +
+  xlab("Number of variants") +
+  ylab("Number of ferrets") +
+  PlotTheme1 +
+  DietcolScale_fill
+print(snv_count)
+ggsave("SNVs_per_ferret.pdf",snv_count,path = savedir, width = 9, height = 5)
+```
+
+```{r}
+transmission_info = "/Users/marissaknoll/Desktop/GitHub/Obesity/NewExtractions/H9N2/TransmissionPairs.csv"
+pairs = read.csv(transmission_info, header = T)
+
+fercount = separate(fercount,sample,into = c("ferretID","DPI"))
+fercount = merge(fercount, pairs, by = c("ferretID"))
+
+  
+p1 = fercount %>% unique() %>% 
+    ggplot(., aes(x= DPI, y = pair_numbers, fill = diet)) + 
+    geom_tile(color = 'black') + 
+    PlotTheme3 +
+    DietcolScale_fill + 
+    facet_grid(pair_diets~inf_route, scales = 'free', space = 'free')
+print(p1)
+ggsave("ferrets_tileplot.pdf", p1, path = savedir,)
+```
+
+```{r}
+m2 = filter(meta, titer != "NA" & titer != "sacrificed") %>%
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "d08" | DPI == "d10" | DPI == "d12")
+titers_pairs = merge(m2,pairs, by = c("ferretID"), all.x = TRUE)
+
+titers_pairs = group_by(titers_pairs,inf_route, diet, DPI,pair_diets) %>%
+  mutate(avg_titer = mean(titer)) %>%
+  mutate(sd_titer = sd(titer)) %>%
+  mutate(avg_log_titer = mean(log10_titer)) %>%
+  ungroup()
+
+titers_pairs_plot = ggplot(titers_pairs, aes(x = DPI, y = avg_log_titer, color = diet)) +
+  geom_point() +
+  geom_line(aes(group = inf_route)) +
+  geom_hline(aes(yintercept = 1)) +
+  facet_grid(inf_route+diet~pair_diets) +
+  DietcolScale +
+  ylim(0,8) +
+  PlotTheme1
+print(titers_pairs_plot)
+ggsave("titers_pairs_plot.pdf",titers_pairs_plot,path=savedir)
+```
+
+Plotting rep1 vs rep2
+```{r}
+rep_correlation = ggplot(vdf) +
+  geom_point(aes(x = minorfreq1, y = minorfreq2)) +
+  geom_point(aes(x = majorfreq1, y = majorfreq2)) +
+  PlotTheme1 +
+  xlab("Allele frequency in replicate 1") +
+  ylab("Allele frequency in replicate 2") +
+  xlim(0,0.55) + ylim(0,0.55)
+print(rep_correlation)
+ggsave("rep_correlation.pdf",rep_correlation,path = savedir)
+```
+
+Consensus changes
+```{r}
+con_change = filter(vdf, stocknt != major) %>%
+  filter(major %in% ntlist)
+con_change = con_change[!duplicated(con_change), ]
+nrow(con_change)
+
+con_change$maj = paste0(con_change$segment,"_",con_change$stock,con_change$ntpos)
+con_change$ferretID_maj = paste0(con_change$ferretID,"_",con_change$maj)
+con_change = con_change[!duplicated(con_change$ferretID_maj),] 
+# not counting same consensus change but just on different days - basically counting unique consensus changes
+
+nrow(con_change)
+cons = count(con_change,ferretID,diet,inf_route)
+
+select(con_change, stocknt, major, minor)
+# in all cases, the stocknt is the minor -> has been replaced by another nt
+# did these arise as minors first?
+```
+
+Plotting consensus changes
+```{r}
+ggplot(filter(con_change, quality == "good", inf_route == "Contact"), aes(x = DPI, y = majorfreq, color = diet)) +
+  geom_point() +
+  facet_grid(inf_route~ferretID) +
+  PlotTheme1 +
+  DietcolScale
+
+group_by(con_change, diet, inf_route,ferretID, DPI) %>%
+  tally()
+```
+
+```{r}
+con_change$var = paste0(con_change$ferretID,"_",con_change$segment,"_",
+                        con_change$major,"_",con_change$ntpos,"_",con_change$minor)
+consensus = unique(con_change$var)
+length(consensus)
+```
+
+```{r}
+vdf$var = paste0(vdf$ferretID,"_",vdf$segment,"_",vdf$major,"_",vdf$ntpos,"_",vdf$minor)
+
+minorvdf = filter(vdf, !(var %in% consensus))
+minorvdf = minorvdf[!duplicated(minorvdf), ]
+nrow(vdf) - nrow(minorvdf)
+```
+
+Loading in tranmission data
+```{r}
+transmission = "./TransmissionPairs.csv"
+pairs = read.csv(file = transmission, header = T, sep = ",")
+
+vdf_pairs = merge(vdf, pairs, by = c("ferretID"))
+```
+
+Can the consensus changes be detected as minor variants first?
+```{r}
+majpos = c("H9N2_NP_326","H9N2_PB1_1882","H9N2_HA_284","H9N2_PB1_965",
+           "H9N2_NS_652","H9N2_PA_1483","H9N2_HA_747","H9N2_PB2_639",
+           "H9N2_PB1_1882")
+  
+minorvdf$var = paste0(minorvdf$segment,"_",minorvdf$ntpos)
+pos_minors = filter(minorvdf, var %in% majpos) %>%
+  select(-c("shannon_ntpos","segment_shan","shannon","shannon_perkb","normalized_shannon"))
+pos_minors$freq = pos_minors$minorfreq
+pos_minors = pos_minors[!duplicated(pos_minors), ] %>% droplevels()
+
+pos_majors = con_change %>% select(!c("maj","ferretID_maj"))
+pos_majors$var = paste0(pos_majors$segment,"_",pos_majors$ntpos)
+pos_majors$freq = pos_majors$majorfreq
+
+all_pos = rbind(pos_majors,pos_minors) %>% droplevels()
+all_pos$segment = factor(all_pos$segment, levels = SEGMENTS)
+all_pos$diet = factor(all_pos$diet, levels = c("Obese","Lean"))
+
+all_pos = filter(all_pos, ferretID == "1409"|
+                ferretID == "1789"| ferretID == "1794"|
+                ferretID == "1801"| ferretID == "1797"|
+                ferretID == "1971"| ferretID == "1980"|
+                ferretID == "1973"| ferretID == "1986"|
+                ferretID == "2253"| ferretID == "2231"|
+                ferretID == "2233"| ferretID == "2232"|
+                ferretID == "2254"| ferretID == "2238")
+
+all_pos = merge(all_pos, pairs)
+
+minortocon_plot = ggplot(filter(all_pos, pair_numbers == "1408-1409"), 
+                         aes(x = DPI, y = freq, color = var)) +
+  geom_point(size = 2) +
+  geom_line(aes(group = var)) +
+  geom_hline(yintercept = 0.5, linetype = "dotted", color = "red") +
+  facet_grid(pair_numbers~inf_route, drop = FALSE) +
+  PlotTheme1
+print(minortocon_plot)
+ggsave("minortocon_plot.pdf",minortocon_plot,path = savedir, height = 5, width = 10)
+
+```
+
+Tallying SNVs
+```{r}
+# can make these groupings whatever you want
+
+# count the number of SNVs per sample
+group_list_seg = c('ferretID','segment',"DPI","diet","inf_route","cohort") # counts across each segment 
+group_list_gen = c('ferretID',"DPI","diet","inf_route","cohort") # Counts across entire genome
+
+seg_count = TallyIt(minorvdf, group_list_seg, "snv_count")
+gen_count = TallyIt(minorvdf, group_list_gen, "snv_count") 
+```
+
+```{r}
+# INCLUDING SEGMENTS WITH NO SNVS - but only using those that passed seq cutoff
+reseq_seg = select(meta,ferretID,segment,DPI,diet,inf_route,cohort, quality) %>% 
+  filter(quality == "good") %>% 
+  unique()
+seg_count = merge(seg_count,reseq_seg, all= TRUE)
+seg_count = seg_count[!duplicated(seg_count), ]
+
+seg_count$snv_count[is.na(seg_count$snv_count)] = 0
+seg_count = filter(seg_count, !is.na(ferretID))
+```
+
+```{r}
+reseq_gen = select(meta,ferretID,DPI,diet,inf_route,cohort,quality) %>% 
+  filter(quality == "good") %>% 
+  unique()
+gen_count = merge(gen_count,reseq_gen, all = TRUE)
+gen_count = gen_count[!duplicated(gen_count), ]
+
+gen_count$snv_count[is.na(gen_count$snv_count)] = 0
+gen_count = filter(gen_count, !is.na(ferretID))
+```
+
+```{r}
+# Average Number of Variants per Sample
+gen_count_avg = group_by(gen_count, DPI, diet, inf_route) %>%
+  mutate(avgSNV = mean(snv_count), sdSNV = sd(snv_count))
+
+seg_count_avg = group_by(seg_count, DPI, diet) %>%
+  mutate(avgSNV = mean(snv_count), sdSNV = sd(snv_count))
+```
+
+Calculating Shannon Entropy
+```{r}
+minorvdf = ShannonPos(minorvdf)
+minorvdf$SegmentSize = as.numeric(minorvdf$SegmentSize)
+minorvdf$shannon_perkb = (minorvdf$segment_shan/(minorvdf$SegmentSize/1000))
+minorvdf$normalized_shannon = (minorvdf$shannon/GenomeSize)
+```
+
+```{r}
+# shannon_ntpos = shannon entropy at that nt pos - should always be between 0 and 1 for each sample
+# segment_shan = sum of all nt_pos per segment for each sample
+# shannon = sum of all segment_shan across genome for each sample
+# shannon_perkb = segment shannon per kb (segment specific) for each sample
+# normalized_shannon = shannon divided by genome size (can make per kb by dividing by 1000) for each sample
+```
+
+```{r}
+# Average Shannon Entropy per Site per Sample (using normalized_shannon)
+shan_g = ungroup(minorvdf) %>%
+  select(ferretID, DPI, diet, inf_route, cohort,normalized_shannon) %>%
+  unique()
+shan_g = merge(shan_g,reseq_gen %>% unique(), by = c("ferretID", "DPI", "diet", "inf_route","cohort"), all= TRUE) %>%
+  filter(inf_route == "Index" | inf_route == "Control") %>% 
+  unique()
+shan_g$normalized_shannon[is.na(shan_g$normalized_shannon)] = 0
+
+dim(shan_g)
+shan_g <- shan_g[complete.cases(shan_g), ] 
+dim(shan_g)
+
+shan_gen_plot = ggplot(filter(shan_g, DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "Stock"), 
+       aes(x = diet, y = normalized_shannon/1000)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, aes(color = diet)) +
+  facet_grid(~DPI) +
+  PlotTheme1 +
+  DietcolScale
+print(shan_gen_plot)
+ggsave("shan_gen_plot.pdf", shan_gen_plot, path = savedir, width = 10, height = 5)
+```
+
+Test for significance
+```{r}
+o = filter(shan_g, DPI == "Stock" & diet == "Control")
+l = filter(shan_g, DPI == "d06" & diet == "Lean")
+t.test(o$normalized_shannon,l$normalized_shannon)
+```
+
+```{r}
+shan_g_avg = group_by(shan_g, DPI, diet, inf_route) %>% 
+  mutate(avgShan = mean(normalized_shannon), sdShan = sd(normalized_shannon))
+```
+
+```{r}
+shan_segkb = ungroup(minorvdf) %>%
+  select(ferretID, DPI, diet, inf_route, segment, shannon_perkb)
+shan_segkb = shan_segkb[!duplicated(shan_segkb),]
+shan_segkb_avg = group_by(shan_segkb, DPI, diet, inf_route, segment) %>% 
+  mutate(avgShan = mean(shannon_perkb), sdShan = sd(shannon_perkb)) 
+# gives a genome-wide average of normalized segment shannnons for every sample
+
+```
+
+Making plots for variant tallies and Shannon entropy 
+```{r}
+VarPlot = ggplot(gen_count_avg, aes(x=DPI, fill = diet)) +
+  geom_col(aes(y = avgSNV, group = diet), position = "dodge") +
+  geom_jitter(aes(group = diet, y = snv_count), width  = 0.15, size = 2) +
+  geom_errorbar(aes(ymin = avgSNV - sdSNV,
+                    ymax = avgSNV + sdSNV)) +
+  ylab("Average number of SNVs per sample") +
+  xlab("Days after infection") +
+  facet_grid(~inf_route+diet) +
+  PlotTheme1 +
+  DietcolScale_fill
+print(VarPlot)
+ggsave(VarPlot, file = "VariantCount.pdf", path = savedir, width = 25, height = 10)
+```
+
+```{r}
+ShannonPlot = ggplot(shan_g_avg, aes(x=DPI, fill = diet)) +
+  geom_col(aes(y = avgShan, group = diet), position = "dodge") + #plots average
+  geom_jitter(aes(y = normalized_shannon, group = diet), width  = 0.15) + #plots value for each sample
+  geom_errorbar(aes(ymin = avgShan - sdShan,
+                    ymax = avgShan + sdShan)) +
+  ylab("Average Shannon entropy per site across genome") +
+  facet_grid(~inf_route+diet) +
+  PlotTheme1 +
+  DietcolScale_fill
+print(ShannonPlot)
+ggsave(ShannonPlot, file = "MeanShanPerSite.pdf", path = savedir)
+
+ShannonPlot2 = ggplot(shan_segkb_avg, aes(x=DPI, fill = diet)) +
+  geom_col(aes(y = avgShan, group = diet), position = "dodge") + # plots average
+  #geom_point(aes(y = shannon_perkb, group = diet)) + # plots value for each segment, sample
+  #geom_errorbar(aes(ymin = avgShan - sdShan,
+  #                  ymax = avgShan + sdShan)) +
+  ylab("Average Shannon entropy per kB across segments") +
+  facet_grid(~segment) +
+  PlotTheme1 +
+  DietcolScale_fill
+print(ShannonPlot2)
+ggsave(ShannonPlot2, file = "MeanShanPerSegKB.pdf", path = savedir)
+```
+
+```{r}
+shan_seg_plot = filter(shan_segkb, inf_route == "Index") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06") %>%
+  ggplot(. , aes(x = segment, y = shannon_perkb, color = diet)) +
+  geom_boxplot() +
+  facet_grid(~DPI) +
+  PlotTheme1 +
+  ylab("Shannon entropy per kb across each segment") +
+  DietcolScale
+print(shan_seg_plot)
+ggsave("shan_seg_plot.pdf",shan_seg_plot,path=savedir, width = 10, height = 5)
+
+shan_gen_plot = filter(shan_g_avg, inf_route == "Index" | inf_route == "Control") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "d08" | DPI == "Stock") %>%
+  ggplot(. , aes(x = diet, y = (normalized_shannon/1000), color = diet)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  facet_grid(~DPI) +
+  PlotTheme1 +
+  ylab("Shannon entropy per kb across each genome") +
+  DietcolScale
+print(shan_gen_plot)
+ggsave("shan_gen_plot.pdf",shan_gen_plot,path = savedir, width = 10, height = 5)
+
+```
+T tests for plots
+```{r}
+o = filter(shan_segkb, inf_route == "Index" & DPI == "d02" & diet == "Obese" & segment == "H9N2_NS")
+l = filter(shan_segkb, inf_route == "Index" & DPI == "d02" & diet == "Lean" & segment == "H9N2_NS")
+t.test(o$shannon_perkb,l$shannon_perkb)
+
+# On day 4, there is significantly higher diversity in NP in lean ferrets (p = 0.06339)
+# On day 4, there is significantly higher diversity in MP in lean ferrets (p = 0.09573)
+# On day 4, there is significantly higher diversity in NS in lean ferrets (p = 0.004744)
+
+# On day 6, there is significantly higher diversity in NA in lean ferrets (p = 0.008199)
+```
+
+```{r}
+o = filter(shan_g_avg, inf_route == "Index" & DPI == "d06" & diet == "Obese")
+l = filter(shan_g_avg, inf_route == "Index" & DPI == "d06" & diet == "Lean")
+t.test(o$normalized_shannon,l$normalized_shannon)
+
+# On day 6, there is significantly higher diversity (Shannon/kb for each genome) in lean ferrets (p = 0.05607)
+```
+
+```{r}
+gen_count_avg = filter(gen_count_avg, inf_route == "Index" | inf_route == "Contact")
+LeanSNVs_perFerret = ggplot(filter(gen_count_avg, diet == "Lean" & DPI != "d12"),
+                             aes(x = DPI, y = snv_count, color = ferretID)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  ylim(0,45) +
+  facet_grid(~diet+inf_route)+ 
+  PlotTheme1 
+print(LeanSNVs_perFerret)
+ggsave("LeanSNVs_perFerret.png", LeanSNVs_perFerret, path = savedir, width = 10, height = 5)
+
+ObeseSNVs_perFerret = ggplot(filter(gen_count_avg, diet == "Obese"),
+                              aes(x = DPI, y = snv_count, color = ferretID)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+    ylim(0,45) +
+  facet_grid(~diet+inf_route) + 
+  PlotTheme1
+print(ObeseSNVs_perFerret)
+ggsave("ObeseSNVs_perFerret.png", ObeseSNVs_perFerret, path = savedir, width = 10, height = 5)
+```
+
+```{r}
+snv_count_segment_plot = filter(seg_count, inf_route == "Index") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06") %>%
+
+ggplot(. , aes(x = segment, y = snv_count, color = diet)) +
+  geom_boxplot() +
+  #geom_point() +
+  facet_grid(~DPI) +
+  PlotTheme1 +
+  DietcolScale
+print(snv_count_segment_plot)
+ggsave("snv_count_segment_plot.pdf", snv_count_segment_plot, path = savedir, width = 10, height = 5)
+
+
+gen_count_segment_plot = filter(gen_count, inf_route == "Index" | inf_route == "Control") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "Stock") %>%
+ggplot(. , aes(x = diet, y = snv_count)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, aes(color = diet)) +
+  facet_grid(~DPI) +
+  ylab("SNV richness per sample") +
+  PlotTheme1 +
+  DietcolScale
+print(gen_count_segment_plot)
+ggsave("gen_count_segment_plot.pdf",gen_count_segment_plot,path=savedir, width = 10, height = 5)
+```
+Test for significance
+```{r}
+o = filter(gen_count, inf_route == "Index" & DPI == "d06" & diet == "Obese")
+l = filter(gen_count, inf_route == "Index" & DPI == "d06" & diet == "Lean")
+t.test(o$snv_count,l$snv_count)
+```
+
+Norm snv_count by titer
+```{r}
+avg_titer_df = select(meta, ferretID, DPI, inf_route, diet, titer, log10_titer) %>%
+  filter(!is.na(titer)) %>%
+  droplevels()
+avg_titer_df = avg_titer_df[!duplicated(avg_titer_df), ]
+  
+seg_count_titer = merge(seg_count, avg_titer_df, by = c("ferretID","DPI","diet","inf_route"))
+seg_count_titer$norm_snv = seg_count_titer$snv_count / seg_count_titer$log10_titer
+
+seg_count_titer1 = filter(seg_count_titer, norm_snv == "NaN")
+seg_count_titer1$norm_snv = 0
+seg_count_titer2 = filter(seg_count_titer, norm_snv != "NaN")
+
+seg_count_titer = rbind(seg_count_titer1,seg_count_titer2)
+```
+
+```{r}
+snv_count_seg_titer_plot = filter(seg_count_titer, inf_route == "Index") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06") %>%
+
+ggplot(. , aes(x = segment, y = norm_snv, color = diet)) +
+  geom_boxplot() +
+  #geom_point() +
+  facet_grid(~DPI) +
+  PlotTheme1 +
+  DietcolScale
+print(snv_count_seg_titer_plot)
+ggsave("snv_count_seg_titer_plot.pdf", snv_count_seg_titer_plot, path = savedir, width = 10, height = 5)
+```
+
+Trying to do average snv count per ferret within a diet_pairs group
+```{r}
+#minorvdf_pairs = merge(minorvdf, pairs, by = c("ferretID"))
+
+#group_list_pairs = c('ferretID',"DPI","diet","inf_route","cohort",'pair_diets') # counts across each segment 
+#pairs_count = TallyIt(minorvdf_pairs, group_list_pairs, "snv_count")
+
+#pairs_count = merge(pairs_count,reseq_gen, all = TRUE)
+#pairs_count = pairs_count[!duplicated(pairs_count), ]
+
+#pairs_count_avg = group_by(pairs_count, DPI, diet, inf_route,pair_diets) %>%
+#  mutate(avgSNV = mean(snv_count), sdSNV = sd(snv_count))
+```
+
+```{r}
+gen_count_pairs = merge(gen_count, pairs, by = c("ferretID"))
+
+gen_pairs_plot = ggplot(gen_count_pairs , aes(x=DPI , y = snv_count, color = diet)) +
+  geom_point(aes(group = diet), size = 2) +
+  geom_line(aes(group = ferretID)) +
+  #geom_errorbar(aes(ymin = avgSNV - sdSNV,
+  #                  ymax = avgSNV + sdSNV)) +
+  ylab("Average number of SNVs per sample") +
+  xlab("Days after infection") +
+  facet_grid(pair_diets~inf_route) +
+  PlotTheme1 +
+  DietcolScale
+print(gen_pairs_plot)
+ggsave("gen_pairs_plot_all.pdf", gen_pairs_plot, path = savedir)
+```
+
+Genetic distance measure
+
+```{r}
+distvars = read.csv("/Users/marissaknoll/Desktop/GitHub/Obesity/NewExtractions/H9N2/varfiles/H9N2.VariantPositions.AcrossSamples.0.01.200.csv", header = T)
+distvars = distvars[!duplicated(distvars), ] %>% filter(sample %in% good_names)
+```
+
+```{r}
+gd2 = select(distvars,sample,segment,ntpos,nt,freq) %>% filter(sample %in% good_names) #MARISSA CHECK THIS - WHY DON'T THE GOOD NAMES MATCH
+gd2$sample = paste0('f', gd2$sample)
+
+gd2 = gd2 %>% filter(nt != "-") %>%
+  group_by(sample, segment) %>%
+  pivot_wider(names_from = nt, values_from = freq, id_cols = c(sample, segment, ntpos), values_fill = 0) %>%
+  arrange(segment,ntpos)
+
+gd2 = gd2[!duplicated(gd2),] %>% droplevels() # remove any dups
+
+gd2$positions = paste0(gd2$segment,'_', gd2$ntpos)
+positions = c(levels(factor(gd2$positions)))
+
+gd2 = filter(gd2, sample != "f1415_d02")
+```
+
+```{r}
+filter(gd2, positions == "H9N2_PB2_984")
+filter(distvars, ntpos == "984")
+```
+
+```{r}
+gd2 = gd2 %>% group_by(sample) %>%
+mutate(sample_count = n()) %>%
+ungroup() %>% filter(sample_count == 686) %>% unique()
+
+gd2 %>% select(sample_count,sample) %>% unique() %>% group_by(sample_count) %>% tally() # trying to determine positions that passed cutoff -> figure out why this isn't all of them (eventually)
+# Kate thinks it is python code in generating .csv, specifically the totalcount (major cutoff) not passing a threshold
+
+set1 = unique(factor(gd2$sample)) #check to make sure everything is the same size throughout
+
+dist_prep = as.data.frame(gd2) %>% select(-ntpos, -segment,-sample_count) %>% unique()
+
+for (pos in positions){
+  
+  dist_orig = matrix(data = 0, nrow = length(set1) , ncol = length(set1)) # generate empty matrix to add dist numbers to
+
+  rownames(dist_orig) = set1
+  colnames(dist_orig) = set1
+  
+  d1 = dist_prep %>% filter(positions == pos) %>% unique()
+  
+  rownames(d1) = d1$sample # make rownames the sample names
+  d1[,1] = NULL # remove the row names columns (which is the first column selected)
+  
+  D_man = dist(d1, method="manhattan") # manhattan distance = L1 norm
+  D_man = as.matrix(D_man) #change dist type to matrix
+  
+  # check to make sure dist_orig and dist_euc are in same order
+  # change order of dist_orig to order of dist_euc
+  dist_orig = dist_orig[rownames(D_man), ]
+  dist_orig = dist_orig[,colnames(D_man)]
+  
+  if(identical(dimnames(dist_orig), dimnames(D_man)) == TRUE){
+    
+      dist_man <- dist_orig + D_man #add to the overall matrix
+    
+  }else{
+    
+    print("dimnames are off")
+    
+  }
+  
+}
+
+for (pos in positions){
+  
+  dist_orig = matrix(data = 0, nrow = length(set1) , ncol = length(set1)) # generate empty matrix to add dist numbers to
+
+  rownames(dist_orig) = set1
+  colnames(dist_orig) = set1
+  
+  d1 = dist_prep %>% filter(positions == pos) %>% unique()
+  
+  rownames(d1) = d1$sample # make rownames the sample names
+  d1[,1] = NULL # remove the row names columns (which is the first column selected)
+  
+  d1 = d1[order(row.names(d1)),] # order the rows
+  
+  D_euc = dist(d1, method="euclidean") # euclidean disatnce = L2 norm
+  D_euc = as.matrix(D_euc) #change dist type to matrix
+  
+  # check to make sure dist_orig and dist_euc are in same order
+  # change order of dist_orig to order of dist_euc
+  dist_orig = dist_orig[rownames(D_euc), ]
+  dist_orig = dist_orig[,colnames(D_euc)]
+  
+  if(identical(dimnames(dist_orig), dimnames(D_euc)) == TRUE){
+    
+      dist_euc <- dist_orig + D_euc #add to the overall matrix
+    
+  }else{
+    
+    print("dimnames are off")
+    
+  }
+  
+}
+
+
+```
+
+```{r}
+meta$name = paste0("f",meta$sample)
+red_meta = select(meta, name,cohort,ferretID,DPI,inf_route,diet)
+
+# Manhattan distances (L1 norm)
+man_df = as.data.frame(dist_man)
+man_df$sample = rownames(man_df)
+
+man_long = man_df %>%
+  pivot_longer(!sample, names_to = c("comp"), values_to = "dist")
+man_long = man_long[!duplicated(man_long), ] %>% droplevels()
+
+man_long_m = merge(red_meta, man_long, by.x = c("name"), by.y = c("sample"))
+man_long_m = man_long_m[!duplicated(man_long_m), ] %>% droplevels()
+
+# Euclidian distances (L2 norm)
+euc_df = as.data.frame(dist_euc)
+euc_df$sample = rownames(euc_df)
+
+euc_long = euc_df %>%
+  pivot_longer(!sample, names_to = c("comp"), values_to = "dist")
+euc_long = euc_long[!duplicated(euc_long), ] %>% droplevels()
+
+euc_long_m = merge(red_meta, euc_long, by.x = c("name"), by.y = c("sample"))
+euc_long_m = euc_long_m[!duplicated(euc_long_m), ] %>% droplevels()
+```
+
+Merge again so we have info for both samples in a comparison
+```{r}
+man_long = merge(red_meta, man_long_m, by.x = c("name"), by.y = c("comp"))
+man_long = man_long[!duplicated(man_long), ] %>% droplevels()
+
+euc_long = merge(red_meta, euc_long_m, by.x = c("name"), by.y = c("comp"))
+euc_long = euc_long[!duplicated(euc_long), ] %>% droplevels()
+```
+
+```{r}
+L1_stock_index = ggplot(filter(man_long, inf_route.x == "Control" & 
+                inf_route.y == "Index" &
+                cohort.x == cohort.y)) +
+  geom_boxplot(aes(x = diet.y, y = dist), outlier.shape =  NA, width = 0.5) +
+  geom_jitter(aes(x = diet.y, y = dist, group = diet.y, color = diet.y), width = 0.1) +
+  facet_grid(~DPI.y,scales = 'free', space ='free') +
+  ggtitle("L1-norm between index samples and stock") +
+  xlab("Diet of index ferret") +
+  ylab("L1-norm (Man. distance)") +
+  PlotTheme1 +
+  DietcolScale
+print(L1_stock_index)
+ggsave("L1_stock_index.pdf",L1_stock_index,path = savedir)
+
+L2_stock_index = ggplot(filter(euc_long, inf_route.x == "Control" & 
+                inf_route.y == "Index" &
+                cohort.x == cohort.y)) +
+  geom_boxplot(aes(x = diet.y, y = dist), outlier.shape =  NA, width = 0.5) +
+  geom_jitter(aes(x = diet.y, y = dist, group = diet.y, color = diet.y), width = 0.1) +
+  facet_grid(~DPI.y,scales = 'free', space ='free') +
+  ggtitle("L1-norm between index samples and stock") +
+  xlab("Diet of index ferret") +
+  ylab("L2-norm (Euc. distance)") +
+  PlotTheme1 +
+  DietcolScale
+print(L2_stock_index)
+ggsave("L2_stock_index.pdf",L2_stock_index,path = savedir)
+```
+
+```{r}
+# T tests
+ob_d06 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
+                  cohort.x == cohort.y &
+                  diet.y == "Obese" & DPI.y == "d06")
+ln_d06 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
+                  cohort.x == cohort.y &
+                  diet.y == "Lean" & DPI.y == "d06")
+t.test(ob_d06$dist,ln_d06$dist)
+```
+
+```{r}
+man_long_pair = merge(man_long, pairs, by.x = c("ferretID.x"), by.y = c("ferretID"))
+man_long_p = merge(man_long_pair, pairs, by.x = c("ferretID.y"), by.y = c("ferretID"))
+```
+
+```{r}
+stock_index = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" & cohort.x == cohort.y) %>%
+  mutate(cat = "Stock -> Index",
+         group = "Stock") %>%
+  mutate(pair_numbers.x = NA,
+         pair_diets.x = NA,
+         pair_numbers.y = NA,
+         pair_diets.y = NA) %>%
+  select(-c("group"))
+index_contact_pairs = filter(man_long_p, inf_route.x == "Index" & inf_route.y == "Contact" & pair_numbers.x == pair_numbers.y) %>%
+  mutate(cat = "Index -> Contact (Pairs)")
+# 10 LN -> LN, 2 LN -> OB, 26 OB -> OB
+index_contact_notpairs = filter(man_long_p, inf_route.x == "Index" & inf_route.y == "Contact" & pair_numbers.x != pair_numbers.y) %>%
+  mutate(cat = "Index -> Contact (Not Pairs)")
+
+man_comps = rbind(stock_index, index_contact_pairs, index_contact_notpairs)
+man_comps$cat = factor(man_comps$cat, levels = c("Stock -> Index","Index -> Contact (Pairs)","Index -> Contact (Not Pairs)"))
+
+ggplot(man_comps) +
+  geom_boxplot(aes(x = cat, y = dist, color = diet.y), outlier.shape =  NA, width = 0.5) +
+#  geom_jitter(aes(x = cat, y = dist, group = diet.y, color = diet.y), width = 0.1) +
+  ggtitle("L1-norm between index samples and stock") +
+  xlab("Comparison") +
+  ylab("L1-norm (Man. distance)") +
+  PlotTheme1 +
+  DietcolScale
+# the outliers are all comparisons to 1415_d02 which is weird
+```
+
+```{r}
+LN_LN = filter(man_long_p, inf_route.x == "Index" & inf_route.y == "Contact" & 
+                 pair_numbers.x == pair_numbers.y & pair_diets.x == "LN>LN") %>%
+  mutate(cat = "Lean -> Lean Pairs")
+
+OB_OB = filter(man_long_p, inf_route.x == "Index" & inf_route.y == "Contact" & 
+                 pair_numbers.x == pair_numbers.y & pair_diets.x == "OB>OB") %>%
+  mutate(cat = "Obese -> Obese Pairs")
+
+man_comps2 = rbind(stock_index, LN_LN, OB_OB, index_contact_notpairs)
+man_comps2$cat = factor(man_comps2$cat, levels = c("Stock -> Index",
+                                                 "Lean -> Lean Pairs","Obese -> Obese Pairs",
+                                                 "Index -> Contact (Not Pairs)"))
+
+Man_plot2 = ggplot(man_comps2) +
+  geom_boxplot(aes(x = cat, y = dist, color = diet.y), outlier.shape =  NA, width = 0.5) +
+#  geom_jitter(aes(x = cat, y = dist, group = diet.y, color = diet.y), width = 0.1) +
+  ggtitle("L1-norm between index samples and stock") +
+  xlab("Comparison") +
+  ylab("L1-norm (Man. distance)") +
+  PlotTheme1 +
+  DietcolScale
+print(Man_plot2)
+ggsave("Man_plot2.pdf", Man_plot2, width = 10, height = 5, path = savedir)
+```
+
+```{r}
+ggplot(filter(man_long, inf_route.x == "Index" &
+                inf_route.y == "Contact" &
+                pair_numbers.x == pair_numbers.y)) +
+  geom_boxplot(aes(x = pair_number.x, y = dist), outlier.shape =  NA, width = 0.5) +
+  geom_jitter(aes(x = diet.y, y = dist, group = diet.y, color = diet.x), width = 0.1) +
+  #facet_grid(~DPI.y,scales = 'free', space ='free') +
+  ggtitle("L1-norm between index samples and everything but their contacts") +
+  xlab("Diet of contact ferret") +
+  ylab("L1-norm (Man. distance)") +
+  PlotTheme1 +
+  DietcolScale
+```
+
+Stock to Index Day 2 comparisons (Stock -> Lean, Stock -> Obese)
+```{r}
+ggplot(filter(dist_long_m, cohort == "W17", comp == "fW17_HK1073", inf_route == "Index", DPI == "d02"), 
+       aes(x = diet, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  PlotTheme1
+# had to filter by comp so the individual samples would keep their metadata
+
+ggplot(filter(dist_long_m, cohort == "F17", comp == "fF17_HK1073", inf_route == "Index", DPI == "d02"), 
+       aes(x = diet, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  PlotTheme1
+
+ggplot(filter(dist_long_m, cohort == "Sm18", comp == "fSm18_HK1073", inf_route == "Index", DPI == "d02"), 
+       aes(x = diet, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  PlotTheme1
+
+ggplot(filter(dist_long_m, cohort == "Sp20", comp == "fSp20_HK1073", inf_route == "Index", DPI == "d02"), 
+       aes(x = diet, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  PlotTheme1
+# no samples from this cohort found
+
+#Sp19 samples are good, the stock is missing -> not in good samples
+```
+#compare stock -> index over DPI (expectation is more distant over time)
+```{r}
+ggplot(filter(dist_long_m, cohort == "W17", comp == "fW17_HK1073", inf_route == "Index"), 
+       aes(x = DPI, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, aes(color = diet)) +
+  PlotTheme1
+
+ggplot(filter(dist_long_m, cohort == "F17", comp == "fF17_HK1073", inf_route == "Index"), 
+       aes(x = DPI, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, aes(color = diet)) +
+  PlotTheme1
+
+ggplot(filter(dist_long_m, cohort == "Sm18", comp == "fSm18_HK1073", inf_route == "Index"), 
+       aes(x = DPI, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, aes(color = diet)) +
+  PlotTheme1
+```
+
+Add transmission data
+#compare lean -> lean transmission
+#compare d02 index -> all contact time points (do the contacts diverge from their donors over time)
+#compare last time point index - last time point contact
+```{r}
+ggplot(filter(dist_long_pairs, cohort.x == "Sm18" & cohort.y == "Sm18" & pair_numbers.x == pair_numbers.y, dist > 0), 
+       aes(x = inf_route.x, y = dist)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, aes(color = diet.x)) +
+  facet_grid(~pair_diets.x) +
+  PlotTheme1
+```
+
+
+Do the number of variants correlate with Ct?
+```{r}
+meta_small = select(meta,"ferretID","DPI","diet","inf_route","cohort","Ct_Mgene")
+varcount = merge(gen_count_avg, meta_small, by = c("ferretID","DPI","diet","inf_route","cohort"))
+
+ggplot(varcount, aes(x = Ct_Mgene, y = snv_count, color = diet)) +
+  geom_point() +
+  geom_smooth(method = "glm") +
+  #ylim(20,30) +
+  facet_grid(~inf_route) +
+  PlotTheme1 +
+  DietcolScale
+# will get a warning when NAs are removed
+
+CT_SNVcount_plot = ggplot(filter(varcount, inf_route != "Control"), aes(x = Ct_Mgene, y = snv_count)) +
+  geom_point() +
+  geom_smooth(method = "glm") +
+  #ylim(20,30) +
+  facet_grid(~inf_route) +
+  PlotTheme1 +
+  DietcolScale
+print(CT_SNVcount_plot)
+ggsave("CT_SNVcount_plot.pdf",CT_SNVcount_plot,path = savedir, width = 10, height = 5)
+```
+
+```{r}
+#SNVs_Titer = ggplot(gen_count, aes(x = log10_titer, y = snv_count, color = diet)) +
+#  geom_point(aes(shape = DPI)) +
+#  geom_smooth(method = "glm") +
+#  PlotTheme1 +
+#  DietcolScale +
+#  xlim(0,7) +
+#  facet_grid(~inf_route)
+#print(SNVs_Titer)
+#ggsave("SNVs_Titer.pdf",SNVs_Titer,path = savedir, width = 8, height = 5)
+#ggsave("SNVs_Titer.png",SNVs_Titer,path = savedir, width = 8, height = 5)
+
+# There are 16 points in the index ferrets with LogTiter < 3 in Index ferrets -> 2 samples (w/ 8 segments)
+# Are these outliers that a skewing the data?
+
+#PossOutliers = filter(var_titers, inf_route == "Index" & diet == "Lean" & LogTiter < 3)
+#outlierSamps = levels(factor(PossOutliers$Sample))
+
+#var_titers_NoOut = var_titers %>% filter(!(Sample %in% outlierSamps))
+
+#SNVs_Titer_NoOut = ggplot(var_titers_NoOut, aes(x = LogTiter, y = snv_count, color = diet)) +
+#  geom_point(aes(shape = DPI)) +
+#  geom_smooth(method = "glm") +
+#  PlotTheme1 +
+#  DietcolScale +
+#  xlim(0,7) +
+#  facet_grid(~inf_route)
+#print(SNVs_Titer_NoOut)
+
+# NVs_Titer_NoDiet = ggplot(var_titers, aes(x = LogTiter, y = snv_count)) +
+#  geom_point(aes(shape = DPI)) +
+#  geom_smooth(method = "glm") +
+#  PlotTheme1 +
+#  DietcolScale +
+#  xlim(0,7) +
+#  facet_grid(~inf_route)
+#print(SNVs_Titer_NoDiet)
+```
+
+```{r}
+#meta_smaller = select(meta_small,c(ferretID, DPI, diet, inf_route))
+#meta_smaller = meta_smaller[!duplicated(meta_smaller), ]
+
+#titers_H9_meta = merge(titers_H9, meta_smaller, by = c("ferretID", "DPI","diet","inf_route"))
+#titers_H9_meta = titers_H9_meta[!duplicated(titers_H9_meta), ]
+
+#titers_H9_meta = titers_H9_meta[!duplicated(titers_H9_meta), ]
+#titers_H9_meta$Titer[is.na(titers_H9_meta$Titer)] = 0
+#titers_H9_meta = filter(titers_H9_meta, Titer > 0)
+
+#AvgTiters = group_by(titers_H9_meta, diet, inf_route,DPI) %>%
+#  mutate(LogTiter = log10(Titer)) %>% 
+#  mutate(avgTiter = mean(LogTiter), sdTiter = sd(LogTiter))
+#AvgTiters$inf_route = factor(AvgTiters$inf_route, levels = c("Index","Contact"))
+
+#TiterPlot = ggplot(AvgTiters, aes(x = DPI, y = avgTiter, color = diet)) +
+#  geom_point() +
+#  geom_line(aes(group = diet)) +
+#  geom_errorbar(aes(ymin = avgTiter - sdTiter,
+#                    ymax = avgTiter + sdTiter)) +
+#  ylim(0,7) +
+#  facet_grid(~inf_route) +
+#  DietcolScale +
+#  PlotTheme1
+#print(TiterPlot)
+#ggsave("TiterPlot.png", TiterPlot, width = 7, height = 5, path = savedir)
+
+#titers_H9_meta$inf_route = factor(titers_H9_meta$inf_route, levels = c("Index","Contact"))
+
+#AllTitersPlot = ggplot(titers_H9_meta, aes(x = DPI, y = log10(Titer), color = as.character(ferretID))) +
+#  geom_point(size = 3) +
+#  geom_line(aes(group = ferretID), size = 1.5) +
+#  ylim(0,7) +
+#  facet_grid(diet~inf_route) +
+#  PlotTheme1
+#print(AllTitersPlot)
+#ggsave("AllTitersPlot.png", AllTitersPlot, width = 14, height = 7, path = savedir)
+```
+
+dNdS analysis
+```{r}
+# by ferret
+dNdS_ferret = minorvdf %>% 
+  ungroup() %>% 
+  group_by(ferretID,DPI,diet,inf_route) %>% 
+  count(nonsyn)
+
+dNdS_ferret = pivot_wider(dNdS_ferret,names_from = nonsyn, values_from = n)
+dNdS_ferret = select(dNdS_ferret, ferretID,DPI,nonsyn,syn)
+dNdS_ferret$dNdS = paste0(dNdS_ferret$nonsyn / dNdS_ferret$syn)
+dNdS_ferret$dNdS = as.numeric(dNdS_ferret$dNdS)
+
+dNdS_ferret = filter(dNdS_ferret, inf_route == "Index" | inf_route == "Contact")
+
+dNdS_ferret_plot = ggplot(dNdS_ferret, aes(x = DPI, y = dNdS, color = ferretID)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(~diet+inf_route) +
+  PlotTheme1
+print(dNdS_ferret_plot)
+ggsave("dNdS_ferret.pdf", dNdS_ferret_plot, path = savedir)
+ggsave("dNdS_ferret.png", dNdS_ferret_plot, path = savedir, width = 10, height = 5)
+```
+
+```{r}
+# by ferret and gene
+#dNdS_ferret_gene = minorvdf %>% 
+#  ungroup() %>% 
+#  group_by(ferretID,DPI,diet,inf_route,segment) %>% 
+#  count(nonsyn)
+
+#dNdS_ferret_gene = pivot_wider(dNdS_ferret_gene,names_from = nonsyn, values_from = n)
+#dNdS_ferret_gene = select(dNdS_ferret_gene, ferretID,DPI,nonsyn,syn)
+#dNdS_ferret_gene$dNdS = paste0(dNdS_ferret_gene$nonsyn / dNdS_ferret_gene$syn)
+#dNdS_ferret_gene$dNdS = as.numeric(dNdS_ferret_gene$dNdS)
+
+#dNdS_ferret_gene_plot = ggplot(dNdS_ferret_gene, aes(x = DPI, y = dNdS, color = diet)) +
+#  geom_point() +
+#  geom_line(aes(group = ferretID)) +
+#  facet_grid(segment~diet+inf_route) +
+#  PlotTheme1 +
+#  DietcolScale
+#print(dNdS_ferret_gene_plot)
+#ggsave("dNdS_ferret_gene_plot.pdf", dNdS_ferret_gene_plot, path = savedir)
+#ggsave("dNdS_ferret_gene_plot.png", dNdS_ferret_gene_plot, path = savedir, height = 10, width = 10)
+```
+
+Do the number of variants correlate with metabolic measures?
+```{r}
+
+```
+
+SNV location plots
+```{r}
+SNVLocation = ggplot(minorvdf, aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet, shape = cohort)) +
+  facet_grid(inf_route~segment) +
+  PlotTheme1 +
+  DietcolScale
+print(SNVLocation)
+ggsave(SNVLocation, file = "SNVLocation.pdf", path = savedir)
+# ferret 1787 doesn't have any variants??
+
+minorvdf$var = paste0(minorvdf$segment,"_",minorvdf$major,minorvdf$ntpos,minorvdf$minor)
+
+# Comparing to SNVs found in the stock
+
+stock = filter(minorvdf, DPI == "Stock")
+stock = stock[!duplicated(stock), ]
+stocksnv = levels(factor(stock$var))
+length(stocksnv)
+
+ferrets = filter(minorvdf, DPI != "Stock")
+ferrets = ferrets[!duplicated(ferrets), ]
+
+shared_w_stock = ferrets %>% filter(var %in% stocksnv)
+nrow(shared_w_stock)
+ferunique = ferrets %>% filter(!(var %in% stocksnv))
+nrow(ferunique)
+```
+```{r}
+stock_shared = stock[!duplicated(stock$var),] %>% ungroup() 
+stock_shared = separate(stock_shared,segment, into = c("strain","CHROM"))
+stock_shared$ntvar = paste0(stock_shared$major,stock_shared$ntpos,stock_shared$minor)
+stock_shared$aavar = paste0(stock_shared$majoraa,stock_shared$aapos,stock_shared$minoraa)
+
+stock_shared_smol = select(stock_shared,CHROM,ntvar,aavar) %>% droplevels()
+```
+
+SNV Location compared to stock
+```{r}
+StockSharedPlot = ggplot(shared_w_stock, aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet, shape = cohort), size = 2) +
+  facet_grid(inf_route~segment, drop = FALSE) +
+  PlotTheme1 +
+  DietcolScale +
+  ggtitle("SNVs found in stock")
+print(StockSharedPlot)
+ggsave(StockSharedPlot, file = "StockSharedPlot.pdf", height = 30, width = 15, path = savedir)
+
+FerUniquePlot = ggplot(ferunique, aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet, shape = cohort)) +
+  facet_grid(inf_route~segment) +
+  PlotTheme1 +
+  DietcolScale +
+  ggtitle("SNVs not found in stock")
+print(FerUniquePlot)
+#ggsave(FerUniquePlot, file = "FerUniquePlot.pdf", path = savedir)
+```
+
+Stock variation
+```{r}
+stock_plot = ggplot(filter(shared_w_stock, inf_route != "Aerosol"), 
+                    aes(x = DPI, y = minorfreq, color = ferretID)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(var~diet+inf_route) +
+  PlotTheme1
+ggsave("stock_plot.pdf", stock_plot, width = 8, height = 20, path = savedir)
+```
+
+De novo SNVs
+```{r}
+denovo = ungroup(ferrets) %>% count(var)
+
+filter(ferrets, var == "H9N2_PB2_A2214C") %>% ungroup() %>% count(ferretID,DPI)
+filter(ferrets, var == "H9N2_PB2_A2214C") %>% count(minorfreq)
+# found in basically every sample with a freq of 2-5% what is this
+```
+Venn diagram of obese and lean de novo SNVs
+```{r}
+o_var = filter(ferrets, diet == "Obese") 
+o_var = unique(o_var$var)
+
+l_var = filter(ferrets, diet == "Lean") 
+l_var = unique(l_var$var)
+
+diet_var <- list(Obese = o_var, Lean = l_var)
+
+#DietUniqueSNVS = ggVennDiagram(diet_var)
+#print(DietUniqueSNVS)
+#ggsave(DietUniqueSNVS, file = "DietUniqueSNVS.pdf", path = savedir)
+```
+
+Obese- and lean-specific SNVs
+```{r}
+lean = ferrets %>% 
+  filter(var %in% l_var) %>% 
+  filter(!(var %in% o_var)) 
+
+lean$sample_var = paste0(lean$sample,"_",lean$var)
+lean = lean[!duplicated(lean$sample_var),] 
+
+lean$ferretID_var = paste0(lean$ferretID,"_",lean$var)
+lean = lean[!duplicated(lean$ferretID_var),] 
+
+lean = lean %>% 
+  group_by(var) %>% 
+  mutate(count = 1, totalsamp = sum(count))
+
+obese = ferrets %>% 
+  filter(var %in% o_var) %>% 
+  filter(!(var %in% l_var)) 
+
+obese$sample_var = paste0(obese$sample,"_",obese$var)
+obese = obese[!duplicated(obese$sample_var),] 
+
+obese$ferretID_var = paste0(obese$ferretID,"_",obese$var)
+obese = obese[!duplicated(obese$ferretID_var),] 
+
+obese = obese %>% 
+  group_by(var) %>% 
+  mutate(count = 1, totalsamp = sum(count))
+
+dietunique = rbind(lean,obese)
+dietunique = dietunique[!duplicated(dietunique), ] %>% droplevels()
+dietunique = filter(dietunique, inf_route != "Aerosol")
+  
+DietUnique = ggplot(dietunique, aes(x = ntpos, y = segment)) +
+  geom_point(aes(color = nonsyn, size = totalsamp)) + 
+  ggtitle("Number of samples containing each variant - diet specific") +
+  theme(legend.key = element_blank(),
+         strip.background = element_rect(colour="black", fill="white"),
+         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_grid(diet~STRAIN) +
+  PlotTheme1
+print(DietUnique)
+ggsave(DietUnique, filename = "SegmentSNVPlot_DietUnqique.pdf", path = savedir, width = 10, height = 5)
+```
+
+```{r}
+# make new version of this figure, separating out transmission v independent ferrets
+DietUnique_InfRoute = ggplot(dietunique, aes(x = ntpos, y = segment)) +
+  geom_point(aes(color = nonsyn, size = totalsamp)) + 
+  ggtitle("Number of samples containing each variant - diet specific") +
+  theme(legend.key = element_blank(),
+         strip.background = element_rect(colour="black", fill="white"),
+         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_grid(diet~inf_route) +
+  PlotTheme1
+print(DietUnique_InfRoute)
+ggsave(DietUnique_InfRoute, filename = "SegmentSNVPlot_DietUnqique_InfRoute.pdf", 
+       path = savedir, width = 15, height = 10)
+ggsave(DietUnique_InfRoute, filename = "SegmentSNVPlot_DietUnqique_InfRoute.png", 
+       path = savedir, width = 15, height = 10)
+```
+
+dNdS analysis of de novo, diet unique genes
+```{r}
+# by ferret
+dNdS_denovo_ferret = dietunique %>% 
+  ungroup() %>% 
+  group_by(ferretID,DPI,diet,inf_route) %>% 
+  count(nonsyn)
+
+dNdS_denovo_ferret = pivot_wider(dNdS_denovo_ferret,names_from = nonsyn, values_from = n)
+dNdS_denovo_ferret = select(dNdS_denovo_ferret, ferretID,DPI,nonsyn,syn)
+dNdS_denovo_ferret$dNdS = paste0(dNdS_denovo_ferret$nonsyn / dNdS_denovo_ferret$syn)
+dNdS_denovo_ferret$dNdS = as.numeric(dNdS_denovo_ferret$dNdS)
+
+dNdS_denovo_ferret_plot = ggplot(dNdS_denovo_ferret, aes(x = DPI, y = dNdS, color = ferretID)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(~diet+inf_route) +
+  PlotTheme1 
+print(dNdS_denovo_ferret_plot)
+ggsave("dNdS_denovo_ferret.pdf", dNdS_denovo_ferret_plot, path = savedir)
+ggsave("dNdS_denovo_ferret.png", dNdS_denovo_ferret_plot, path = savedir, width = 10, height = 5)
+```
+
+```{r}
+# by ferret and gene
+dNdS_denovo_ferret_gene = dietunique %>% 
+  ungroup() %>% 
+  group_by(ferretID,DPI,diet,inf_route,segment) %>% 
+  count(nonsyn)
+
+dNdS_denovo_ferret_gene = pivot_wider(dNdS_denovo_ferret_gene,names_from = nonsyn, values_from = n)
+dNdS_denovo_ferret_gene = select(dNdS_denovo_ferret_gene, ferretID,DPI,nonsyn,syn)
+dNdS_denovo_ferret_gene$dNdS = paste0(dNdS_denovo_ferret_gene$nonsyn / dNdS_denovo_ferret_gene$syn)
+dNdS_denovo_ferret_gene$dNdS = as.numeric(dNdS_denovo_ferret_gene$dNdS)
+
+dNdS_denovo_ferret_gene_plot = ggplot(dNdS_denovo_ferret_gene, aes(x = DPI, y = dNdS, color = diet)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(segment~diet+inf_route) +
+  PlotTheme1 +
+  DietcolScale
+print(dNdS_denovo_ferret_gene_plot)
+ggsave("dNdS_denovo_ferret_gene_plot.pdf", dNdS_denovo_ferret_gene_plot, path = savedir)
+ggsave("dNdS_denovo_ferret_gene_plot.png", dNdS_denovo_ferret_gene_plot, path = savedir)
+```
+
+```{r}
+#ggplot(filter(dietunique, totalsamp > 1), aes(x = DPI, y = minorfreq, color = nonsyn)) +
+#  geom_point() +
+#  geom_line(aes(group = var)) +
+#  facet_grid(ferretID~diet+inf_route) +
+#  PlotTheme1 
+```
+
+```{r}
+nonsyns = filter(dietunique, nonsyn == "nonsyn" & totalsamp > 1) %>% ungroup() %>% droplevels()
+nonsyns = nonsyns[!duplicated(nonsyns$var),] 
+
+nonsyns = separate(nonsyns,segment, into = c("strain","CHROM"))
+nonsyns$ntvar = paste0(nonsyns$major,nonsyns$ntpos,nonsyns$minor)
+nonsyns$aavar = paste0(nonsyns$majoraa,nonsyns$aapos,nonsyns$minoraa)
+
+nonsyns_smol = select(nonsyns,CHROM,ntvar,aavar,diet,totalsamp) %>% droplevels()
+write.csv(nonsyns_smol, "nonsyns.csv")
+```
+
+Which ferrets have more than one de novo?
+```{r}
+ggplot(dietunique, aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet)) +
+  facet_grid(~segment) +
+  PlotTheme1 +
+  DietcolScale
+
+ggplot(filter(dietunique, totalsamp >1), aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet)) +
+  facet_grid(~segment) +
+  PlotTheme1 +
+  DietcolScale
+```
+
+AF of shared de novos
+```{r}
+ggplot(filter(dietunique, totalsamp >1), aes(x = DPI, y = minorfreq)) +
+  geom_point(aes(color = var)) +
+  facet_grid(~ferretID) +
+  PlotTheme1
+```
+
+SNVs shared between diet groups
+```{r}
+shared = ferrets %>% 
+  filter(var %in% o_var) %>% 
+  filter(var %in% l_var) %>% 
+  group_by(var) %>% 
+  mutate(count = 1, totalsamp = sum(count))
+
+SharedPlot = ggplot(shared, aes(x = ntpos, y = segment)) +
+  geom_point(aes(size = totalsamp, color = nonsyn)) +
+  ggtitle("Number of samples containing each variant - Shared between diet groups") +
+  theme(legend.key = element_blank(),
+         strip.background = element_rect(colour="black", fill="white"),
+         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  PlotTheme1
+print(SharedPlot)
+ggsave(SharedPlot, filename = "SegmentSNVPlot_DietShared.pdf", path = savedir)
+```
+
+```{r}
+Minorfreq_dist = ggplot(ferrets, aes(x = minorfreq, fill = diet)) +
+  geom_histogram(binwidth = 0.01) +
+  PlotTheme1 +
+  facet_grid(inf_route~diet) +
+  DietcolScale_fill
+print(Minorfreq_dist)
+ggsave("Minorfreq_dist.pdf", Minorfreq_dist, path = savedir)
+# obese seem to have fewer low-frequency de novo SNVs
+```
+
+```{r}
+obese_index = filter(ferrets, diet == "Obese" & inf_route == "Index") %>% ungroup()
+lean_index = filter(ferrets, diet == "Lean" & inf_route == "Index") %>% ungroup()
+t.test(obese_index$minorfreq, lean_index$minorfreq)
+# means are not different
+
+obese_contact = filter(ferrets, diet == "Obese" & inf_route == "Contact") %>% ungroup()
+lean_contact = filter(ferrets, diet == "Lean" & inf_route == "Contact") %>% ungroup()
+t.test(obese_contact$minorfreq, lean_contact$minorfreq)
+# means are not different
+
+# QQ_Plot: compares the quantiles of two distributions, x =y suggests they are drawn from the same distribution
+qqnorm(obese_index$minorfreq, main = "Obese Index - Test of Normal Distribution")
+qqnorm(lean_index$minorfreq, main = "Lean Index - Test of Normal Distribution")
+# neither distribution is normal
+qqplot(obese_index$minorfreq,lean_index$minorfreq, xlab = "Obese Index", ylab = "Lean Index")
+
+qqnorm(obese_contact$minorfreq, main = "Obese Contact - Test of Normal Distribution")
+qqnorm(lean_contact$minorfreq, main = "Lean Contact - Test of Normal Distribution")
+# neither distribution is normal
+qqplot(obese_contact$minorfreq,lean_contact$minorfreq, xlab = "Obese Contact", ylab = "Lean Contact")
+
+# Mann-Whitney-Wilcox test (Mann-Whitney U test): samples are not normally distributed and independent of each other
+wilcox.test(obese_index$minorfreq,lean_index$minorfreq)
+wilcox.test(obese_contact$minorfreq,lean_contact$minorfreq)
+# distributions are not different
+
+# Kolmogorov-Smirnov test: samples are not normally distributed and independent of each other
+# "sensitive to differences in location and shape of the empirical CDFs of the two samples"
+ks.test(obese_index$minorfreq,lean_index$minorfreq)
+ks.test(obese_contact$minorfreq,lean_contact$minorfreq)
+# distributions are not different
+```
+
+```{r}
+highfreq = filter(ferrets, minorfreq > 0.25)
+```

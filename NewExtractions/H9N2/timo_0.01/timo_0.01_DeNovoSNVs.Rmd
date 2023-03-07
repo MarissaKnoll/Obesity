@@ -1,0 +1,464 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library("tidyr")
+library('ggplot2')
+library('dplyr')
+library("glue")
+
+wkdir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01"
+setwd(wkdir)
+savedir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/Output_Figures"
+
+source("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/FD_functions.R")
+```
+
+```{r}
+diet = c("Obese","Lean","Control")
+dietColors = c("#FF9933","#66CCFF","#606060")
+names(dietColors) = diet
+DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
+DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
+```
+
+Specifying thresholds and plotting variables
+```{r}
+cov_cut = 200
+freq_cut = 0.01
+pvalcut  = 0.05
+
+ntlist = c("A","C","G","T")
+SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
+```
+
+#Loading metadata
+This includes titer and Ct values when applicable. ND indicates qPCR was run with a negative result; 0 indicates plaque assay or HAI was run with a negative result. NA for any values indicate that data was missing. Sacrificed indicates there was no data at that time point because the ferret had already been sacrficied for pathology. 
+```{r}
+metafile = metafile = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/H9_Metadata.csv"
+
+meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
+meta = filter(meta, resequenced == "yes")
+
+meta$Ct_Mgene = as.numeric(meta$Ct_Mgene)
+meta$titer = as.numeric(meta$titer)
+meta$log10_titer = as.numeric(meta$log10_titer)
+
+meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
+```
+
+Loading in coverage file & segment size information
+```{r}
+cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
+
+seg_sizes = "../SegmentSize.csv"
+sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
+GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
+
+cov$segment = factor(cov$segment, levels = SEGMENTS)
+```
+
+Checking if data passes thresholds
+```{r}
+cov_check = CoverageAcross(cov,cov_cut,70,sizes, wkdir)
+```
+
+Merging coverage check info with the rest of the metadata
+```{r}
+meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"), all.y = TRUE)
+
+nrow(meta)
+count(meta,quality)
+```
+
+Loading in variant files
+```{r}
+varfile = "./varfiles/H9N2.VariantsOnly.0.01.200.csv"
+
+# read and rearrange the data
+vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
+vars$name = vars$sample
+```
+
+Rearranging variant dataframe
+```{r}
+vdf = ArrangeVarWRep(vars)
+# already have replicate data in the varfiles from running CompareReps.v2.py script
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+nrow(vdf)
+```
+
+Filtering variant df by timo binocheck
+```{r}
+vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
+vdf_bino = filter(vdf, binocheck != "False")
+vdf_bino = vdf_bino[!duplicated(vdf_bino), ] %>% droplevels()
+nrow(vdf_bino)
+# this really gets rid of a lot of variants (~1000)
+```
+
+Filtering variant df with frequency cutoffs
+```{r}
+vdf = filter(vdf, minorfreq1 >= freq_cut & 
+               minorfreq2 >= freq_cut & 
+               minor %in% ntlist &
+               major %in% ntlist) %>% 
+            droplevels()
+# based on MAF study, reps and 0.01% cutoff was best combo
+#filter each replicate separately rather than using the average
+
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+nrow(vdf)
+# does not eliminate any variants here
+```
+
+Adding metadata
+```{r}
+vdf = merge(vdf,meta, by = c("sample","segment"))
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+vdf$segment = factor(vdf$segment, levels = SEGMENTS)
+
+vdf = filter(vdf, inf_route == "Index" | inf_route == "Contact" | inf_route == "Control")
+# ignoring aerosol for now
+```
+
+```{r}
+vdf = filter(vdf, quality == "good")
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+good_names = c(levels(factor(vdf$sample)))
+```
+
+```{r}
+transmission_info = "/Users/marissaknoll/Desktop/GitHub/Obesity/NewExtractions/H9N2/TransmissionPairs.csv"
+pairs = read.csv(transmission_info, header = T)
+```
+
+```{r}
+con_change = filter(vdf, stocknt != major) %>%
+  filter(major %in% ntlist)
+con_change = con_change[!duplicated(con_change), ]
+con_change$var = paste0(con_change$ferretID,"_",con_change$segment,"_",
+                        con_change$major,"_",con_change$ntpos,"_",con_change$minor)
+consensus = unique(con_change$var)
+length(consensus)
+```
+
+```{r}
+vdf$var = paste0(vdf$ferretID,"_",vdf$segment,"_",vdf$major,"_",vdf$ntpos,"_",vdf$minor)
+
+minorvdf = filter(vdf, !(var %in% consensus))
+minorvdf = minorvdf[!duplicated(minorvdf), ]
+nrow(vdf) - nrow(minorvdf)
+```
+
+SNV location plots
+```{r}
+SNVLocation = ggplot(minorvdf, aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet, shape = cohort)) +
+  facet_grid(inf_route~segment) +
+  PlotTheme1 +
+  DietcolScale
+print(SNVLocation)
+ggsave(SNVLocation, file = "SNVLocation.pdf", path = savedir)
+# ferret 1787 doesn't have any variants??
+
+minorvdf$var = paste0(minorvdf$segment,"_",minorvdf$major,minorvdf$ntpos,minorvdf$minor)
+
+# Comparing to SNVs found in the stock
+
+stock = filter(minorvdf, DPI == "Stock")
+stock = stock[!duplicated(stock), ]
+stocksnv = levels(factor(stock$var))
+length(stocksnv)
+
+ferrets = filter(minorvdf, DPI != "Stock")
+ferrets = ferrets[!duplicated(ferrets), ]
+
+shared_w_stock = ferrets %>% filter(var %in% stocksnv)
+nrow(shared_w_stock)
+ferunique = ferrets %>% filter(!(var %in% stocksnv))
+nrow(ferunique)
+```
+```{r}
+stock_shared = stock[!duplicated(stock$var),] %>% ungroup() 
+stock_shared = separate(stock_shared,segment, into = c("strain","CHROM"))
+stock_shared$ntvar = paste0(stock_shared$major,stock_shared$ntpos,stock_shared$minor)
+stock_shared$aavar = paste0(stock_shared$majoraa,stock_shared$aapos,stock_shared$minoraa)
+
+stock_shared_smol = select(stock_shared,CHROM,ntvar,aavar) %>% droplevels()
+```
+
+SNV Location compared to stock
+```{r}
+StockSharedPlot = ggplot(shared_w_stock, aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet, shape = cohort), size = 2) +
+  facet_grid(inf_route~segment, drop = FALSE) +
+  PlotTheme1 +
+  DietcolScale +
+  ggtitle("SNVs found in stock")
+print(StockSharedPlot)
+ggsave(StockSharedPlot, file = "StockSharedPlot.pdf", height = 30, width = 15, path = savedir)
+
+FerUniquePlot = ggplot(ferunique, aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet, shape = cohort)) +
+  facet_grid(inf_route~segment) +
+  PlotTheme1 +
+  DietcolScale +
+  ggtitle("SNVs not found in stock")
+print(FerUniquePlot)
+#ggsave(FerUniquePlot, file = "FerUniquePlot.pdf", path = savedir)
+```
+
+Stock variation
+```{r}
+stock_plot = ggplot(filter(shared_w_stock, inf_route != "Aerosol"), 
+                    aes(x = DPI, y = minorfreq, color = ferretID)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(var~diet+inf_route) +
+  PlotTheme1
+ggsave("stock_plot.pdf", stock_plot, width = 8, height = 20, path = savedir)
+```
+
+De novo SNVs
+```{r}
+denovo = ungroup(ferrets) %>% count(var)
+
+filter(ferrets, var == "H9N2_PB2_A2214C") %>% ungroup() %>% count(ferretID,DPI)
+filter(ferrets, var == "H9N2_PB2_A2214C") %>% count(minorfreq)
+# found in basically every sample with a freq of 2-5% what is this
+```
+Venn diagram of obese and lean de novo SNVs
+```{r}
+o_var = filter(ferrets, diet == "Obese") 
+o_var = unique(o_var$var)
+
+l_var = filter(ferrets, diet == "Lean") 
+l_var = unique(l_var$var)
+
+diet_var <- list(Obese = o_var, Lean = l_var)
+
+#DietUniqueSNVS = ggVennDiagram(diet_var)
+#print(DietUniqueSNVS)
+#ggsave(DietUniqueSNVS, file = "DietUniqueSNVS.pdf", path = savedir)
+```
+
+Obese- and lean-specific SNVs
+```{r}
+lean = ferrets %>% 
+  filter(var %in% l_var) %>% 
+  filter(!(var %in% o_var)) 
+
+lean$sample_var = paste0(lean$sample,"_",lean$var)
+lean = lean[!duplicated(lean$sample_var),] 
+
+lean$ferretID_var = paste0(lean$ferretID,"_",lean$var)
+lean = lean[!duplicated(lean$ferretID_var),] 
+
+lean = lean %>% 
+  group_by(var) %>% 
+  mutate(count = 1, totalsamp = sum(count))
+
+obese = ferrets %>% 
+  filter(var %in% o_var) %>% 
+  filter(!(var %in% l_var)) 
+
+obese$sample_var = paste0(obese$sample,"_",obese$var)
+obese = obese[!duplicated(obese$sample_var),] 
+
+obese$ferretID_var = paste0(obese$ferretID,"_",obese$var)
+obese = obese[!duplicated(obese$ferretID_var),] 
+
+obese = obese %>% 
+  group_by(var) %>% 
+  mutate(count = 1, totalsamp = sum(count))
+
+dietunique = rbind(lean,obese)
+dietunique = dietunique[!duplicated(dietunique), ] %>% droplevels()
+dietunique = filter(dietunique, inf_route != "Aerosol")
+  
+DietUnique = ggplot(dietunique, aes(x = ntpos, y = segment)) +
+  geom_point(aes(color = nonsyn, size = totalsamp)) + 
+  ggtitle("Number of samples containing each variant - diet specific") +
+  theme(legend.key = element_blank(),
+         strip.background = element_rect(colour="black", fill="white"),
+         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_grid(diet~STRAIN) +
+  PlotTheme1
+print(DietUnique)
+ggsave(DietUnique, filename = "SegmentSNVPlot_DietUnqique.pdf", path = savedir, width = 10, height = 5)
+```
+
+```{r}
+# make new version of this figure, separating out transmission v independent ferrets
+DietUnique_InfRoute = ggplot(dietunique, aes(x = ntpos, y = segment)) +
+  geom_point(aes(color = nonsyn, size = totalsamp)) + 
+  ggtitle("Number of samples containing each variant - diet specific") +
+  theme(legend.key = element_blank(),
+         strip.background = element_rect(colour="black", fill="white"),
+         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_grid(diet~inf_route) +
+  PlotTheme1
+print(DietUnique_InfRoute)
+ggsave(DietUnique_InfRoute, filename = "SegmentSNVPlot_DietUnqique_InfRoute.pdf", 
+       path = savedir, width = 15, height = 10)
+ggsave(DietUnique_InfRoute, filename = "SegmentSNVPlot_DietUnqique_InfRoute.png", 
+       path = savedir, width = 15, height = 10)
+```
+
+dNdS analysis of de novo, diet unique genes
+```{r}
+# by ferret
+dNdS_denovo_ferret = dietunique %>% 
+  ungroup() %>% 
+  group_by(ferretID,DPI,diet,inf_route) %>% 
+  count(nonsyn)
+
+dNdS_denovo_ferret = pivot_wider(dNdS_denovo_ferret,names_from = nonsyn, values_from = n)
+dNdS_denovo_ferret = select(dNdS_denovo_ferret, ferretID,DPI,nonsyn,syn)
+dNdS_denovo_ferret$dNdS = paste0(dNdS_denovo_ferret$nonsyn / dNdS_denovo_ferret$syn)
+dNdS_denovo_ferret$dNdS = as.numeric(dNdS_denovo_ferret$dNdS)
+
+dNdS_denovo_ferret_plot = ggplot(dNdS_denovo_ferret, aes(x = DPI, y = dNdS, color = ferretID)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(~diet+inf_route) +
+  PlotTheme1 
+print(dNdS_denovo_ferret_plot)
+ggsave("dNdS_denovo_ferret.pdf", dNdS_denovo_ferret_plot, path = savedir)
+ggsave("dNdS_denovo_ferret.png", dNdS_denovo_ferret_plot, path = savedir, width = 10, height = 5)
+```
+
+```{r}
+# by ferret and gene
+dNdS_denovo_ferret_gene = dietunique %>% 
+  ungroup() %>% 
+  group_by(ferretID,DPI,diet,inf_route,segment) %>% 
+  count(nonsyn)
+
+dNdS_denovo_ferret_gene = pivot_wider(dNdS_denovo_ferret_gene,names_from = nonsyn, values_from = n)
+dNdS_denovo_ferret_gene = select(dNdS_denovo_ferret_gene, ferretID,DPI,nonsyn,syn)
+dNdS_denovo_ferret_gene$dNdS = paste0(dNdS_denovo_ferret_gene$nonsyn / dNdS_denovo_ferret_gene$syn)
+dNdS_denovo_ferret_gene$dNdS = as.numeric(dNdS_denovo_ferret_gene$dNdS)
+
+dNdS_denovo_ferret_gene_plot = ggplot(dNdS_denovo_ferret_gene, aes(x = DPI, y = dNdS, color = diet)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(segment~diet+inf_route) +
+  PlotTheme1 +
+  DietcolScale
+print(dNdS_denovo_ferret_gene_plot)
+ggsave("dNdS_denovo_ferret_gene_plot.pdf", dNdS_denovo_ferret_gene_plot, path = savedir)
+ggsave("dNdS_denovo_ferret_gene_plot.png", dNdS_denovo_ferret_gene_plot, path = savedir)
+```
+
+```{r}
+#ggplot(filter(dietunique, totalsamp > 1), aes(x = DPI, y = minorfreq, color = nonsyn)) +
+#  geom_point() +
+#  geom_line(aes(group = var)) +
+#  facet_grid(ferretID~diet+inf_route) +
+#  PlotTheme1 
+```
+
+```{r}
+nonsyns = filter(dietunique, nonsyn == "nonsyn" & totalsamp > 1) %>% ungroup() %>% droplevels()
+nonsyns = nonsyns[!duplicated(nonsyns$var),] 
+
+nonsyns = separate(nonsyns,segment, into = c("strain","CHROM"))
+nonsyns$ntvar = paste0(nonsyns$major,nonsyns$ntpos,nonsyns$minor)
+nonsyns$aavar = paste0(nonsyns$majoraa,nonsyns$aapos,nonsyns$minoraa)
+
+nonsyns_smol = select(nonsyns,CHROM,ntvar,aavar,diet,totalsamp) %>% droplevels()
+write.csv(nonsyns_smol, "nonsyns.csv")
+```
+
+Which ferrets have more than one de novo?
+```{r}
+ggplot(dietunique, aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet)) +
+  facet_grid(~segment) +
+  PlotTheme1 +
+  DietcolScale
+
+ggplot(filter(dietunique, totalsamp >1), aes(x = ntpos, y = ferretID)) +
+  geom_point(aes(color = diet)) +
+  facet_grid(~segment) +
+  PlotTheme1 +
+  DietcolScale
+```
+
+AF of shared de novos
+```{r}
+ggplot(filter(dietunique, totalsamp >1), aes(x = DPI, y = minorfreq)) +
+  geom_point(aes(color = var)) +
+  facet_grid(~ferretID) +
+  PlotTheme1
+```
+
+SNVs shared between diet groups
+```{r}
+shared = ferrets %>% 
+  filter(var %in% o_var) %>% 
+  filter(var %in% l_var) %>% 
+  group_by(var) %>% 
+  mutate(count = 1, totalsamp = sum(count))
+
+SharedPlot = ggplot(shared, aes(x = ntpos, y = segment)) +
+  geom_point(aes(size = totalsamp, color = nonsyn)) +
+  ggtitle("Number of samples containing each variant - Shared between diet groups") +
+  theme(legend.key = element_blank(),
+         strip.background = element_rect(colour="black", fill="white"),
+         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  PlotTheme1
+print(SharedPlot)
+ggsave(SharedPlot, filename = "SegmentSNVPlot_DietShared.pdf", path = savedir)
+```
+
+```{r}
+Minorfreq_dist = ggplot(ferrets, aes(x = minorfreq, fill = diet)) +
+  geom_histogram(binwidth = 0.01) +
+  PlotTheme1 +
+  facet_grid(inf_route~diet) +
+  DietcolScale_fill
+print(Minorfreq_dist)
+ggsave("Minorfreq_dist.pdf", Minorfreq_dist, path = savedir)
+# obese seem to have fewer low-frequency de novo SNVs
+```
+
+```{r}
+obese_index = filter(ferrets, diet == "Obese" & inf_route == "Index") %>% ungroup()
+lean_index = filter(ferrets, diet == "Lean" & inf_route == "Index") %>% ungroup()
+t.test(obese_index$minorfreq, lean_index$minorfreq)
+# means are not different
+
+obese_contact = filter(ferrets, diet == "Obese" & inf_route == "Contact") %>% ungroup()
+lean_contact = filter(ferrets, diet == "Lean" & inf_route == "Contact") %>% ungroup()
+t.test(obese_contact$minorfreq, lean_contact$minorfreq)
+# means are not different
+
+# QQ_Plot: compares the quantiles of two distributions, x =y suggests they are drawn from the same distribution
+qqnorm(obese_index$minorfreq, main = "Obese Index - Test of Normal Distribution")
+qqnorm(lean_index$minorfreq, main = "Lean Index - Test of Normal Distribution")
+# neither distribution is normal
+qqplot(obese_index$minorfreq,lean_index$minorfreq, xlab = "Obese Index", ylab = "Lean Index")
+
+qqnorm(obese_contact$minorfreq, main = "Obese Contact - Test of Normal Distribution")
+qqnorm(lean_contact$minorfreq, main = "Lean Contact - Test of Normal Distribution")
+# neither distribution is normal
+qqplot(obese_contact$minorfreq,lean_contact$minorfreq, xlab = "Obese Contact", ylab = "Lean Contact")
+
+# Mann-Whitney-Wilcox test (Mann-Whitney U test): samples are not normally distributed and independent of each other
+wilcox.test(obese_index$minorfreq,lean_index$minorfreq)
+wilcox.test(obese_contact$minorfreq,lean_contact$minorfreq)
+# distributions are not different
+
+# Kolmogorov-Smirnov test: samples are not normally distributed and independent of each other
+# "sensitive to differences in location and shape of the empirical CDFs of the two samples"
+ks.test(obese_index$minorfreq,lean_index$minorfreq)
+ks.test(obese_contact$minorfreq,lean_contact$minorfreq)
+# distributions are not different
+```
