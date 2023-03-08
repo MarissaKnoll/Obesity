@@ -382,11 +382,11 @@ reps_df$ave_dvg_freq = (reps_df$DVG_freq.x + reps_df$DVG_freq.y)/2
 ```
 
 ```{r}
-reps_df = reps_df %>% 
+reps_df = reps_df %>%
   arrange(ferret_day, ave_dvg_freq) %>% 
-  group_by(ferret_day) %>% 
-  mutate(order_number = row_number()) %>% 
-  ungroup() %>%
+  group_by(ferret_day) #%>% 
+  mutate(order_number = row_number()) #%>% 
+  ungroup() #%>%
   unique()
 ```
 
