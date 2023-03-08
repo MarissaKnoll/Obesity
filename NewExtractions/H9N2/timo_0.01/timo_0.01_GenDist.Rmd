@@ -390,25 +390,37 @@ man_long_p = merge(man_long_pair, pairs, by.x = c("ferretID.y"), by.y = c("ferre
 Still need to get these below to make sense 
 
 
-
+Comparing 
 ```{r}
-stock_index = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" & cohort.x == cohort.y) %>%
-  mutate(cat = "Stock -> Index",
-         group = "Stock") %>%
+stock_index = filter(man_long, 
+                     inf_route.x == "Control" & 
+                       inf_route.y == "Index" & 
+                       cohort.x == cohort.y) %>%
+  mutate(cat = "Stock -> Index", group = "Stock") %>%
   mutate(pair_numbers.x = NA,
          pair_diets.x = NA,
          pair_numbers.y = NA,
          pair_diets.y = NA) %>%
   select(-c("group"))
-index_contact_pairs = filter(man_long_p, inf_route.x == "Index" & inf_route.y == "Contact" & pair_numbers.x == pair_numbers.y) %>%
+
+index_contact_pairs = filter(man_long_p, 
+                             inf_route.x == "Index" & 
+                               inf_route.y == "Contact" & 
+                               pair_numbers.x == pair_numbers.y) %>%
   mutate(cat = "Index -> Contact (Pairs)")
 # 10 LN -> LN, 2 LN -> OB, 26 OB -> OB
-index_contact_notpairs = filter(man_long_p, inf_route.x == "Index" & inf_route.y == "Contact" & pair_numbers.x != pair_numbers.y) %>%
+
+index_contact_notpairs = filter(man_long_p, 
+                                inf_route.x == "Index" & 
+                                  inf_route.y == "Contact" & 
+                                  pair_numbers.x != pair_numbers.y) %>%
   mutate(cat = "Index -> Contact (Not Pairs)")
 
 man_comps = rbind(stock_index, index_contact_pairs, index_contact_notpairs)
 man_comps$cat = factor(man_comps$cat, levels = c("Stock -> Index","Index -> Contact (Pairs)","Index -> Contact (Not Pairs)"))
+```
 
+```{r}
 ggplot(man_comps) +
   geom_boxplot(aes(x = cat, y = dist, color = diet.y), outlier.shape =  NA, width = 0.5) +
 #  geom_jitter(aes(x = cat, y = dist, group = diet.y, color = diet.y), width = 0.1) +
@@ -445,28 +457,45 @@ Man_plot2 = ggplot(man_comps2) +
 print(Man_plot2)
 ggsave("Man_plot2.pdf", Man_plot2, width = 10, height = 5, path = savedir)
 ```
+
 Stock to Index Day 2 comparisons (Stock -> Lean, Stock -> Obese)
 ```{r}
-ggplot(filter(dist_long_m, cohort == "W17", comp == "fW17_HK1073", inf_route == "Index", DPI == "d02"), 
+ggplot(filter(man_long_m, 
+              cohort == "W17", 
+              comp == "W17_HK1073", 
+              inf_route == "Index", 
+              DPI == "d02"), 
        aes(x = diet, y = dist)) +
   geom_boxplot() +
   geom_jitter(width = 0.1) +
   PlotTheme1
 # had to filter by comp so the individual samples would keep their metadata
 
-ggplot(filter(dist_long_m, cohort == "F17", comp == "fF17_HK1073", inf_route == "Index", DPI == "d02"), 
+ggplot(filter(man_long_m, 
+              cohort == "F17", 
+              comp == "F17_HK1073", 
+              inf_route == "Index", 
+              DPI == "d02"), 
        aes(x = diet, y = dist)) +
   geom_boxplot() +
   geom_jitter(width = 0.1) +
   PlotTheme1
 
-ggplot(filter(dist_long_m, cohort == "Sm18", comp == "fSm18_HK1073", inf_route == "Index", DPI == "d02"), 
+ggplot(filter(man_long_m, 
+              cohort == "Sm18", 
+              comp == "Sm18_HK1073", 
+              inf_route == "Index", 
+              DPI == "d02"), 
        aes(x = diet, y = dist)) +
   geom_boxplot() +
   geom_jitter(width = 0.1) +
   PlotTheme1
 
-ggplot(filter(dist_long_m, cohort == "Sp20", comp == "fSp20_HK1073", inf_route == "Index", DPI == "d02"), 
+ggplot(filter(man_long_m, 
+              cohort == "Sp20", 
+              comp == "Sp20_HK1073", 
+              inf_route == "Index", 
+              DPI == "d02"), 
        aes(x = diet, y = dist)) +
   geom_boxplot() +
   geom_jitter(width = 0.1) +
@@ -477,19 +506,19 @@ ggplot(filter(dist_long_m, cohort == "Sp20", comp == "fSp20_HK1073", inf_route =
 ```
 #compare stock -> index over DPI (expectation is more distant over time)
 ```{r}
-ggplot(filter(dist_long_m, cohort == "W17", comp == "fW17_HK1073", inf_route == "Index"), 
+ggplot(filter(man_long_m, cohort == "W17", comp == "W17_HK1073", inf_route == "Index"), 
+       aes(x = DPI, y = dist)) +
+  geom_boxplot(aes(group = "diet")) +
+  geom_jitter(width = 0.1, aes(color = diet)) +
+  PlotTheme1
+
+ggplot(filter(man_long_m, cohort == "F17", comp == "F17_HK1073", inf_route == "Index"), 
        aes(x = DPI, y = dist)) +
   geom_boxplot() +
   geom_jitter(width = 0.1, aes(color = diet)) +
   PlotTheme1
 
-ggplot(filter(dist_long_m, cohort == "F17", comp == "fF17_HK1073", inf_route == "Index"), 
-       aes(x = DPI, y = dist)) +
-  geom_boxplot() +
-  geom_jitter(width = 0.1, aes(color = diet)) +
-  PlotTheme1
-
-ggplot(filter(dist_long_m, cohort == "Sm18", comp == "fSm18_HK1073", inf_route == "Index"), 
+ggplot(filter(man_long_m, cohort == "Sm18", comp == "Sm18_HK1073", inf_route == "Index"), 
        aes(x = DPI, y = dist)) +
   geom_boxplot() +
   geom_jitter(width = 0.1, aes(color = diet)) +

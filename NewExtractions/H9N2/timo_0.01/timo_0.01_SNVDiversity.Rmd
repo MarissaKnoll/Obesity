@@ -54,6 +54,7 @@ Loading in coverage file & segment size information
 cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
 
 seg_sizes = "../SegmentSize.csv"
+#manually changed NS size from 838 to 864 to match the longest length found in the cov data rather than the Segemnt size value from the .gtf file - think about this
 sizes = read.csv(file=seg_sizes,header=T,sep=",",na.strings = c(''))
 GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
 
@@ -192,8 +193,8 @@ Tallying SNVs
 group_list_seg = c('ferretID','segment',"DPI","diet","inf_route","cohort") # counts across each segment 
 group_list_gen = c('ferretID',"DPI","diet","inf_route","cohort") # Counts across entire genome
 
-seg_count = TallyIt(minorvdf, group_list_seg, "snv_count")
-gen_count = TallyIt(minorvdf, group_list_gen, "snv_count") 
+seg_count = TallyIt(vdf, group_list_seg, "snv_count")
+gen_count = TallyIt(vdf, group_list_gen, "snv_count") 
 ```
 
 ```{r}
@@ -230,10 +231,10 @@ seg_count_avg = group_by(seg_count, DPI, diet) %>%
 
 Calculating Shannon Entropy
 ```{r}
-minorvdf = ShannonPos(minorvdf)
-minorvdf$SegmentSize = as.numeric(minorvdf$SegmentSize)
-minorvdf$shannon_perkb = (minorvdf$segment_shan/(minorvdf$SegmentSize/1000))
-minorvdf$normalized_shannon = (minorvdf$shannon/GenomeSize)
+vdf = ShannonPos(vdf)
+vdf$SegmentSize = as.numeric(vdf$SegmentSize)
+vdf$shannon_perkb = (vdf$segment_shan/(vdf$SegmentSize/1000))
+vdf$normalized_shannon = (vdf$shannon/GenomeSize)
 ```
 
 ```{r}
@@ -246,9 +247,10 @@ minorvdf$normalized_shannon = (minorvdf$shannon/GenomeSize)
 
 ```{r}
 # Average Shannon Entropy per Site per Sample (using normalized_shannon)
-shan_g = ungroup(minorvdf) %>%
+shan_g = ungroup(vdf) %>%
   select(ferretID, DPI, diet, inf_route, cohort,normalized_shannon) %>%
   unique()
+
 shan_g = merge(shan_g,reseq_gen %>% unique(), by = c("ferretID", "DPI", "diet", "inf_route","cohort"), all= TRUE) %>%
   filter(inf_route == "Index" | inf_route == "Control") %>% 
   unique()
@@ -263,10 +265,13 @@ shan_gen_plot = ggplot(filter(shan_g, DPI == "d02" | DPI == "d04" | DPI == "d06"
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(width = 0.2, aes(color = diet)) +
   facet_grid(~DPI) +
+  xlab("Normalized Shannon entropy per kB")
   PlotTheme1 +
   DietcolScale
 print(shan_gen_plot)
 ggsave("shan_gen_plot.pdf", shan_gen_plot, path = savedir, width = 10, height = 5)
+
+# 03/07 now includes consensus changes (using vdf instead of minorvdf)
 ```
 
 Test for significance
@@ -301,6 +306,8 @@ ggplot(. , aes(x = diet, y = snv_count)) +
   DietcolScale
 print(gen_count_segment_plot)
 ggsave("gen_count_segment_plot.pdf",gen_count_segment_plot,path=savedir, width = 10, height = 5)
+
+# 03/07 now includes consensus changes (using vdf instead of minorvdf)
 ```
 
 ```{r}
@@ -323,24 +330,60 @@ ggsave("gen_pairs_plot_all.pdf", gen_pairs_plot, path = savedir)
 dNdS analysis
 ```{r}
 # by ferret
-dNdS_ferret = minorvdf %>% 
-  ungroup() %>% 
-  group_by(ferretID,DPI,diet,inf_route) %>% 
-  count(nonsyn)
+#dNdS_ferret = minorvdf %>% 
+#  ungroup() %>% 
+#  group_by(ferretID,DPI,diet,inf_route) %>% 
+#  count(nonsyn)
 
-dNdS_ferret = pivot_wider(dNdS_ferret,names_from = nonsyn, values_from = n)
-dNdS_ferret = select(dNdS_ferret, ferretID,DPI,nonsyn,syn)
-dNdS_ferret$dNdS = paste0(dNdS_ferret$nonsyn / dNdS_ferret$syn)
-dNdS_ferret$dNdS = as.numeric(dNdS_ferret$dNdS)
+#dNdS_ferret = pivot_wider(dNdS_ferret,names_from = nonsyn, values_from = n)
+#dNdS_ferret = select(dNdS_ferret, ferretID,DPI,nonsyn,syn)
+#dNdS_ferret$dNdS = paste0(dNdS_ferret$nonsyn / dNdS_ferret$syn)
+#dNdS_ferret$dNdS = as.numeric(dNdS_ferret$dNdS)
 
-dNdS_ferret = filter(dNdS_ferret, inf_route == "Index" | inf_route == "Contact")
+#dNdS_ferret = filter(dNdS_ferret, inf_route == "Index" | inf_route == "Contact")
 
-dNdS_ferret_plot = ggplot(dNdS_ferret, aes(x = DPI, y = dNdS, color = ferretID)) +
-  geom_point() +
-  geom_line(aes(group = ferretID)) +
-  facet_grid(~diet+inf_route) +
-  PlotTheme1
-print(dNdS_ferret_plot)
-ggsave("dNdS_ferret.pdf", dNdS_ferret_plot, path = savedir)
-ggsave("dNdS_ferret.png", dNdS_ferret_plot, path = savedir, width = 10, height = 5)
+#dNdS_ferret_plot = ggplot(dNdS_ferret, aes(x = DPI, y = dNdS, color = ferretID)) +
+#  geom_point() +
+#  geom_line(aes(group = ferretID)) +
+#  facet_grid(~diet+inf_route) +
+#  PlotTheme1
+#print(dNdS_ferret_plot)
+#ggsave("dNdS_ferret.pdf", dNdS_ferret_plot, path = savedir)
+#ggsave("dNdS_ferret.png", dNdS_ferret_plot, path = savedir, width = 10, height = 5)
+```
+
+Setting up AF dataframes for bottleneck calculation
+```{r}
+af_df = select(vdf, sample, segment, ntpos, stocknt, major, minor,minorfreq, cohort, inf_route, ferretID, diet, DPI) %>%
+  ungroup() %>%
+  unique()
+af_df$var = paste0(af_df$segment,"_",af_df$major,"_",af_df$ntpos,"_",af_df$minor)
+
+stock = filter(af_df, inf_route == "Control") %>% unique()
+index = filter(af_df, inf_route == "Index") %>% unique()
+
+samples = unique(index$sample)
+  
+files_dir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/freqfiles"
+  
+for(i in samples){
+  print(i)
+  
+  n = filter(af_df, sample == i)
+  
+  c = unique(n$cohort)
+  s = filter(stock, cohort %in% c)
+  
+  comp = merge(s, n, by = c("segment", "ntpos","stocknt","major","minor","cohort","var"), all.x = TRUE)
+  comp$minorfreq.y[is.na(comp$minorfreq.y)] = 0
+  
+  df = select(comp,minorfreq.x,minorfreq.y)
+  write.table(df, file = glue("{files_dir}/Stock_{i}_freqs.csv"), row.names = FALSE, col.names = FALSE)
+  
+}
+
+```
+
+```{r}
+
 ```
