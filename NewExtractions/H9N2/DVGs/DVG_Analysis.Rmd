@@ -304,15 +304,14 @@ reps_df = merge(reps_df, m, by = c('ferret_id','dpi','cohort','ferret_day'))  # 
 
 ```{r}
 p4 = reps_df %>% 
-    select(segment, NewGap, EstimatedFragLength) %>%
+    select(segment, NewGap, EstimatedFragLength, ferret_weight) %>%
     unique() %>%
     ggplot(., aes(x= EstimatedFragLength)) + 
     geom_histogram(color = 'black') + 
     PlotTheme1 +
     labs(x="estimated DVG frag. length (nt)", y='number of unique DVG species') 
-    
-
 print(p4)
+
 ggsave(p4,
        filename = glue("{wkdir}/DVG_figures/deletion.size.pdf"),
        width = 5,
@@ -322,6 +321,16 @@ ggsave(p4,
        filename = glue("{wkdir}/DVG_figures/deletion.size.png"),
        width =5,
        height = 5, limitsize=FALSE) #, useDingbats = FALSE)
+
+p4_alt = reps_df %>% 
+    select(segment, NewGap, EstimatedFragLength, ferret_weight, type) %>%
+    unique() %>%
+    ggplot(., aes(x= EstimatedFragLength)) + 
+    geom_histogram(color = 'black') + 
+    facet_grid(type~ferret_weight) +
+    PlotTheme1 +
+    labs(x="estimated DVG frag. length (nt)", y='number of unique DVG species') 
+print(p4_alt)
 ```
 
 ```{r}
@@ -384,9 +393,9 @@ reps_df$ave_dvg_freq = (reps_df$DVG_freq.x + reps_df$DVG_freq.y)/2
 ```{r}
 reps_df = reps_df %>%
   arrange(ferret_day, ave_dvg_freq) %>% 
-  group_by(ferret_day) #%>% 
-  mutate(order_number = row_number()) #%>% 
-  ungroup() #%>%
+  group_by(ferret_day) %>% 
+  mutate(order_number = row_number()) %>% 
+  ungroup() %>%
   unique()
 ```
 
@@ -683,3 +692,20 @@ ggsave(p4,
 ```
 
 End of Kate's code
+
+Which DVG species are most common -> different for diets?
+```{r}
+index = filter(reps_df ,type == "index")
+
+ggplot(index, aes(x = DVG_group)) +
+  geom_histogram(binwidth = 1)
+
+index_obese = filter(index, type == "index" & ferret_weight == "obese")
+index_lean = filter(index, type == "index" & ferret_weight == "lean")
+
+```
+
+Are DVGs transmitted
+```{r}
+ggplot(reps_df, aes(x = ))
+```

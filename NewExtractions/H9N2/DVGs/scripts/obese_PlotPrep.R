@@ -24,7 +24,7 @@ PlotTheme3 = theme(
               text = element_text(size = 14))
 
 DAYS = c('stock','d02','d04','d06','d08','d10','d12')
-weight_colors = c('black','#7f7f7f','#657d9d')
+weight_colors = c('black','#66CCff','#ff9933')
 WEIGHTS = c('stock','lean','obese')
 names(weight_colors) = WEIGHTS
 weight_colFill <- scale_fill_manual(name = "weight", values = weight_colors)
