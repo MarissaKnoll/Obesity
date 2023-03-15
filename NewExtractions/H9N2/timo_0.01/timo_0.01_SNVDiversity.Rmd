@@ -434,5 +434,7 @@ for(i in select_samps){
   
   df_day = group_by(df, DPI) %>% tally()
   print(df_day)
+  
+  
 }
 ```
