@@ -385,6 +385,27 @@ for(i in samples){
 
 ```
 
+Loading in data after running bottleneck code
+```{r}
+stock_index = read.csv("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/freqfiles/stock/all_stock_bottlenecks.csv")
+meta_noseg = select(meta, sample, ferretID, DPI, cohort, inf_route, diet, STRAIN, quality) %>% unique()
+
+stock_index = merge(stock_index, meta_noseg, by = c("sample","ferretID","DPI"))
+```
+
+```{r}
+ggplot(filter(stock_index, smallest_timepoint == "yes"), aes(x = diet, y = bottleneck_size)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, aes(color = diet)) +
+  PlotTheme1 +
+  DietcolScale +
+  ggtitle("Bottleneck between stock and index ferrets")
+
+o_bottle = filter(stock_index, diet == "Obese" & smallest_timepoint == "yes")
+l_bottle = filter(stock_index, diet == "Lean" & smallest_timepoint == "yes")
+t.test(o_bottle$bottleneck_size, l_bottle$bottleneck_size)
+```
+
 Setting up AF dataframes for bottleneck calculation: Index to contact ferrets
 ```{r}
 af_df = select(vdf, sample, segment, ntpos, stocknt, major, minor,minorfreq, cohort, inf_route, ferretID, diet, DPI) %>%
