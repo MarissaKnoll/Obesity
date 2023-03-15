@@ -15,6 +15,7 @@ library('plyr')
 library('tidyverse')
 library('dplyr')
 library('glue')
+library('ggVennDiagram')
 ```
 
 ```{r}
@@ -50,8 +51,8 @@ source(glue('{wkdir}/scripts/obese_PlotPrep.R'))
 
 ```{r}
 # loading in metadata and coverage data
-metafile = glue('{wkdir}/scripts/transmission_h9n2_use_long.csv')
-meta = read.csv(file=metafile,header=T,sep=",",na.strings = c(''))
+metafile = glue("{wkdir}/scripts/UPDATED.H9N2.metadata.csv")
+meta = read.csv(file=metafile,header=T,sep=",",na.strings = c('')) 
 coverage_passfile = glue('{wkdir}/scripts/H9N2.coverage.pass.check.200.0.95.csv')
 cov_check = read.csv(file=coverage_passfile,header=T,sep=",",na.strings = c(''))
 ```
@@ -184,16 +185,14 @@ setdiff(levels(factor(r1$ferret_id)),
 setdiff(meta$ferret_id, reps$ferret_id)  # samples in meta not in seq data
 setdiff(reps$ferret_id, meta$ferret_id) # samples in seq data not in meta
 
-m = merge(meta, reps, by = c('ferret_id'), all = TRUE)
+m = merge(reps, meta, by = c('ferret_id'), all = TRUE)
 
 write.csv(m, glue('{wkdir}/scripts/UPDATED.H9N2.metadata.csv'), row.names = FALSE)
-
-m = merge(meta, reps, by = c('ferret_id'))
 ```
 
 ```{r}
 temp = meta %>% 
-        filter(type %in% c('index','direct')) %>% 
+        filter(inf_route %in% c('Index','Contact')) %>% 
         unique() %>% 
         select(pair, type, ferret_id) %>% unique() %>% 
         pivot_wider(names_from = 'type', values_from = 'ferret_id')
@@ -557,6 +556,31 @@ ggsave(p2,
 ```
 
 ```{r}
+gen_rich = richness %>% 
+  select(ferret_id, dpi, cohort,deletion_richness, type, ferret_weight, pair_ids, index_direct, type_day) %>%
+  unique()
+
+head(gen_rich)
+
+gen_rich %>% filter(dpi %in% c('d02','d04','d06','stock')) %>%
+    filter(type == 'index' | type == "stock") %>%
+    ggplot(., aes(x=ferret_weight, y = deletion_richness, group = ferret_weight)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(width = 0.2, aes(color = ferret_weight)) +
+    labs(x='segment',y='deletion richness') + 
+    PlotTheme1 +
+    weight_colScale +
+    facet_grid(.~dpi)
+```
+
+Test for significance
+```{r}
+o = filter(gen_rich, type == "index" & dpi == "d06" & ferret_weight == "obese")
+l = filter(gen_rich, type == "index" & dpi == "d06" & ferret_weight == "lean")
+t.test(o$deletion_richness,l$deletion_richness)
+```
+
+```{r}
 seg_rich = richness %>% #filter(ferret_weight == 'obese' & index_direct == 'obese_obese') %>%
     select(ferret_id, dpi, seg_deletion_richness, type, ferret_weight, 
            pair_ids, index_direct, type_day, segment) %>%
@@ -620,10 +644,10 @@ seg_rich %>% filter(segment %in% SEGMENTS) %>%
     facet_grid(.~type)
 
 
-p6 = seg_rich %>% filter(segment %in% SEGMENTS & dpi %in% c('d02','d04','d06')) %>%
-    filter(type == 'index') %>%
+p6 = seg_rich %>% filter(segment %in% SEGMENTS & dpi %in% c('d02','d04','d06','stock')) %>%
+    filter(type == 'index' | type == "stock") %>%
     ggplot(., aes(x=segment, y = seg_deletion_richness, group = seg_weight, color = ferret_weight)) + 
-    geom_boxplot() + 
+    geom_boxplot(outlier.shape = NA) + 
     labs(x='segment',y='deletion richness') + 
     PlotTheme1 +
     weight_colScale +
@@ -640,11 +664,13 @@ ggsave(p6,
        filename = glue("{wkdir}/DVG_figures/segment.index.richness.png"),
        width =8,
        height = 4, limitsize=FALSE) #, useDingbats = FALSE)
+
+
 ```
 Test for significance
 ```{r}
-o = filter(seg_rich, type == "index" & dpi == "d06" & segment == "H9N2_NS" & ferret_weight == "obese")
-l = filter(seg_rich, type == "index" & dpi == "d06" & segment == "H9N2_NS" & ferret_weight == "lean")
+o = filter(seg_rich, type == "index" & dpi == "d02" & segment == "H9N2_PB2" & ferret_weight == "obese")
+l = filter(seg_rich, type == "index" & dpi == "d02" & segment == "H9N2_PB2" & ferret_weight == "lean")
 t.test(o$seg_deletion_richness,l$seg_deletion_richness)
 ```
 
@@ -693,18 +719,137 @@ ggsave(p4,
 
 End of Kate's code
 
-Which DVG species are most common -> different for diets?
+Which DVGs are shared between stock and index?
 ```{r}
-index = filter(reps_df ,type == "index")
+reps_df$DVG = paste0(reps_df$segment,"_",reps_df$DVG_group)
 
-ggplot(index, aes(x = DVG_group)) +
-  geom_histogram(binwidth = 1)
+F17_stock = filter(reps_df ,type == "stock", cohort == "F17")
+F17_stock_dvg = unique(F17_stock$DVG)
+W17_stock = filter(reps_df ,type == "stock", cohort == "W17")
+W17_stock_dvg = unique(W17_stock$DVG)
+Sm18_stock = filter(reps_df ,type == "stock", cohort == "Sm18")
+Sm18_stock_dvg = unique(Sm18_stock$DVG)
+Sp19_stock = filter(reps_df ,type == "stock", cohort == "Sp19")
+Sp19_stock_dvg = unique(Sp19_stock$DVG)
+Sp20_stock = filter(reps_df ,type == "stock", cohort == "Sp20")
+Sp20_stock_dvg = unique(Sp20_stock$DVG)
 
-index_obese = filter(index, type == "index" & ferret_weight == "obese")
-index_lean = filter(index, type == "index" & ferret_weight == "lean")
+F17_index = filter(reps_df ,type == "index", cohort == "F17")
+F17_index_dvg = unique(F17_index$DVG)
+W17_index = filter(reps_df ,type == "index", cohort == "W17")
+W17_index_dvg = unique(W17_index$DVG)
+Sm18_index = filter(reps_df ,type == "index", cohort == "Sm18")
+Sm18_index_dvg = unique(Sm18_index$DVG)
+Sp19_index = filter(reps_df ,type == "index", cohort == "Sp19")
+Sp19_index_dvg = unique(Sp19_index$DVG)
+Sp20_index = filter(reps_df ,type == "index", cohort == "Sp20")
+Sp20_index_dvg = unique(Sp20_index$DVG)
+
+F17_shared = F17_index %>% filter(DVG %in% F17_stock_dvg) %>% filter((DVG %in% F17_index_dvg)) %>% unique()
+F17_denovo = F17_index %>% filter((DVG %in% F17_index_dvg)) %>% filter(!(DVG %in% F17_stock_dvg)) %>% unique()
+
+W17_shared = W17_index %>% filter(DVG %in% W17_stock_dvg) %>% filter((DVG %in% W17_index_dvg)) %>% unique()
+W17_denovo = W17_index %>% filter((DVG %in% W17_index_dvg)) %>% filter(!(DVG %in% W17_stock_dvg)) %>% unique()
+
+Sm18_shared = Sm18_index %>% filter(DVG %in% Sm18_stock_dvg) %>% filter((DVG %in% Sm18_index_dvg)) %>% unique()
+Sm18_denovo = Sm18_index %>% filter((DVG %in% Sm18_index_dvg)) %>% filter(!(DVG %in% Sm18_stock_dvg)) %>% unique()
+
+Sp19_shared = Sp19_index %>% filter(DVG %in% Sp19_stock_dvg) %>% filter((DVG %in% Sp19_index_dvg)) %>% unique()
+Sp19_denovo = Sp19_index %>% filter((DVG %in% Sp19_index_dvg)) %>% filter(!(DVG %in% Sp19_stock_dvg)) %>% unique()
+
+Sp20_shared = Sp20_index %>% filter(DVG %in% Sp20_stock_dvg) %>% filter((DVG %in% Sp20_index_dvg)) %>% unique()
+Sp20_denovo = Sp20_index %>% filter((DVG %in% Sp20_index_dvg)) %>% filter(!(DVG %in% Sp20_stock_dvg)) %>% unique()
+
 
 ```
 
+Are there diet-specific DVGs in index ferrets?
+```{r}
+index_obese = filter(index, ferret_weight == "obese") 
+o_dvg = unique(index_obese$DVG)
+
+index_lean = filter(index, ferret_weight == "lean") 
+l_dvg = unique(index_lean$DVG)
+
+diet_dvg <- list(Obese = o_dvg, Lean = l_dvg)
+
+#DietUniqueDVGs = ggVennDiagram(diet_dvg)
+#print(DietUniqueDVGs)
+#ggsave(DietUniqueDVGs, file = "DietUniqueDVGs.pdf", path = saveitdir)
+
+lean = index %>% 
+  filter(DVG %in% l_dvg) %>% 
+  filter(!(DVG %in% o_dvg)) %>%
+  filter(!(DVG %in% stock)) %>%
+  unique()
+
+lean = lean %>%
+  group_by(DVG) %>% 
+  mutate(count = 1, totalsamp = sum(count))
+
+mult_lean = filter(lean, totalsamp > 1) %>% 
+  unique()
+
+obese = index %>% 
+  filter((DVG %in% o_dvg)) %>%
+  filter(!(DVG %in% l_dvg)) %>% 
+  filter(!(DVG %in% stock)) %>%
+  unique()
+
+obese = obese %>%
+  group_by(DVG) %>% 
+  mutate(count = 1, totalsamp = sum(count))
+
+mult_obese = filter(obese, totalsamp > 1) %>% 
+  unique()
+```
+
+```{r}
+ggplot(lean, aes(x = DVG)) +
+  geom_histogram(stat = "count")
+
+ggplot(lean, aes(y = DVG)) +
+  geom_point(aes(x = NewStart)) +
+  geom_point(aes(x = NewEnd)) +
+  facet_grid(~factor(segment, levels = SEGMENTS)) +
+  PlotTheme1
+
+ggplot(lean, aes(x = dpi, y = DVG)) +
+  geom_point() +
+  geom_line(aes(group = DVG)) +
+  facet_grid(~factor(segment, levels = SEGMENTS)) +
+  PlotTheme1
+
+ggplot(mult_lean, aes(x = dpi, y = DVG)) +
+  geom_point() +
+  geom_line(aes(group = DVG)) +
+  facet_grid(~factor(segment, levels = SEGMENTS)) +
+  PlotTheme1
+
+ggplot(obese, aes(x = DVG)) +
+  geom_histogram(stat = "count")
+
+ggplot(obese, aes(y = DVG)) +
+  geom_point(aes(x = NewStart)) +
+  geom_point(aes(x = NewEnd)) +
+  facet_grid(~factor(segment, levels = SEGMENTS)) +
+  PlotTheme1
+
+ggplot(obese, aes(x = dpi, y = DVG)) +
+  geom_point() +
+  geom_line(aes(group = DVG)) +
+  facet_grid(~factor(segment, levels = SEGMENTS)) +
+  PlotTheme1
+
+ggplot(mult_obese, aes(x = dpi, y = DVG)) +
+  geom_point() +
+  geom_line(aes(group = DVG)) +
+  facet_grid(~factor(segment, levels = SEGMENTS)) +
+  PlotTheme1
+```
+```{r}
+
+```
 Are DVGs transmitted
 ```{r}
 ggplot(reps_df, aes(x = ))

@@ -160,9 +160,12 @@ ggplot(filter(con_change, quality == "good", inf_route == "Contact"), aes(x = DP
   facet_grid(inf_route~ferretID) +
   PlotTheme1 +
   DietcolScale
+```
+```{r}
+con_change$aa_change = paste0(con_change$stockaa,"_",con_change$aapos,"_",con_change$majoraa)
 
-group_by(con_change, diet, inf_route,ferretID, DPI) %>%
-  tally()
+cons = select(con_change, ferretID, segment, aa_change, diet, inf_route) 
+write.csv(cons, "consensus_changes.csv", row.names = FALSE)
 ```
 
 ```{r}

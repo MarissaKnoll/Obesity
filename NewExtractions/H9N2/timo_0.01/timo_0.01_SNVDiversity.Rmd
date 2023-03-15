@@ -235,8 +235,8 @@ snv_count_segment_plot = filter(seg_count, inf_route == "Index") %>%
   filter(DPI == "d02" | DPI == "d04" | DPI == "d06") %>%
 
 ggplot(. , aes(x = segment, y = snv_count, color = diet)) +
-  geom_boxplot() +
-  #geom_point() +
+  geom_boxplot(outlier.shape = NA) +
+  #geom_jitter(width = 0.2, aes(color = diet)) +
   facet_grid(~DPI) +
   PlotTheme1 +
   DietcolScale
