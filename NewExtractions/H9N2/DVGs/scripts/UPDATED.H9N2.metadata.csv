@@ -1,20 +1,21 @@
 "ferret_id","cohort","dpi","name.x","rep.x","name.y","rep.y","ferret_weight","type","pair","flag","chain_position","notes","index_direct","worked"
-"1408","W17","d02","New_W17_1408_d02_rep1","rep1","New_W17_1408_d02_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1408","W17","d04","New_W17_1408_d04_rep1","rep1","New_W17_1408_d04_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1408","W17","d06","New_W17_1408_d06_rep1","rep1","New_W17_1408_d06_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1409","W17","d04","New_W17_1409_d04_rep1","rep1","New_W17_1409_d04_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1409","W17","d06","New_W17_1409_d06_rep1","rep1","New_W17_1409_d06_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1409","W17","d08","New_W17_1409_d08_rep1","rep1","New_W17_1409_d08_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1410","W17","d02","New_W17_1410_d02_rep1","rep1","New_W17_1410_d02_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1410","W17","d04","New_W17_1410_d04_rep1","rep1","New_W17_1410_d04_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1410","W17","d06","New_W17_1410_d06_rep1","rep1","New_W17_1410_d06_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1412","W17","d08","New_W17_1412_d08_rep1","rep1","New_W17_1412_d08_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1414","W17","d04","New_W17_1414_d04_rep1","rep1","New_W17_1414_d04_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1414","W17","d06","New_W17_1414_d06_rep1","rep1","New_W17_1414_d06_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1415","W17","d02","New_W17_1415_d02_rep1","rep1","New_W17_1415_d02_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1415","W17","d08","New_W17_1415_d08_rep1","rep1","New_W17_1415_d08_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1416","W17","d02","New_W17_1416_d02_rep1","rep1","New_W17_1416_d02_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
-"1416","W17","d04","New_W17_1416_d04_rep1","rep1","New_W17_1416_d04_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
+"1408","W17","d02","New_W17_1408_d02_rep1","rep1","New_W17_1408_d02_rep2","rep2","obese","index","Z","keep",1,NA,"obese_obese",NA
+"1408","W17","d04","New_W17_1408_d04_rep1","rep1","New_W17_1408_d04_rep2","rep2","obese","index","Z","keep",1,NA,"obese_obese",NA
+"1408","W17","d06","New_W17_1408_d06_rep1","rep1","New_W17_1408_d06_rep2","rep2","obese","index","Z","keep",1,NA,"obese_obese",NA
+"1409","W17","d04","New_W17_1409_d04_rep1","rep1","New_W17_1409_d04_rep2","rep2","obese","direct","Z","keep",2,NA,"obese_obese",NA
+"1409","W17","d06","New_W17_1409_d06_rep1","rep1","New_W17_1409_d06_rep2","rep2","obese","direct","Z","keep",2,NA,"obese_obese",NA
+"1409","W17","d08","New_W17_1409_d08_rep1","rep1","New_W17_1409_d08_rep2","rep2","obese","direct","Z","keep",2,NA,"obese_obese",NA
+"1410","W17","d04","New_W17_1410_d04_rep1","rep1","New_W17_1410_d04_rep2","rep2","lean","direct","AA","keep",2,NA,"lean_lean",NA
+"1410","W17","d02","New_W17_1410_d02_rep1","rep1","New_W17_1410_d02_rep2","rep2","lean","direct","AA","keep",2,NA,"lean_lean",NA
+"1410","W17","d06","New_W17_1410_d06_rep1","rep1","New_W17_1410_d06_rep2","rep2","lean","direct","AA","keep",2,NA,"lean_lean",NA
+"1412","W17","d08","New_W17_1412_d08_rep1","rep1","New_W17_1412_d08_rep2","rep2","lean","index","AB","keep",1,NA,"lean_lean",NA
+"1413",NA,NA,NA,NA,NA,NA,"lean","direct","AB","keep",2,NA,"lean_lean",NA
+"1414","W17","d04","New_W17_1414_d04_rep1","rep1","New_W17_1414_d04_rep2","rep2","obese","index","AC","keep",1,NA,"obese_obese",NA
+"1414","W17","d06","New_W17_1414_d06_rep1","rep1","New_W17_1414_d06_rep2","rep2","obese","index","AC","keep",1,NA,"obese_obese",NA
+"1415","W17","d02","New_W17_1415_d02_rep1","rep1","New_W17_1415_d02_rep2","rep2","obese","direct","AC","keep",2,NA,"obese_obese",NA
+"1415","W17","d08","New_W17_1415_d08_rep1","rep1","New_W17_1415_d08_rep2","rep2","obese","direct","AC","keep",2,NA,"obese_obese",NA
+"1416","W17","d02","New_W17_1416_d02_rep1","rep1","New_W17_1416_d02_rep2","rep2","lean","index","AA","keep",1,NA,"lean_lean",NA
+"1416","W17","d04","New_W17_1416_d04_rep1","rep1","New_W17_1416_d04_rep2","rep2","lean","index","AA","keep",1,NA,"lean_lean",NA
 "1417","W17","d02","New_W17_1417_d02_rep1","rep1","New_W17_1417_d02_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
 "1417","W17","d08","New_W17_1417_d08_rep1","rep1","New_W17_1417_d08_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
 "1417","W17","d12","New_W17_1417_d12_rep1","rep1","New_W17_1417_d12_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
@@ -24,20 +25,21 @@
 "1789","F17","d04","New_F17_1789_d04_rep1","rep1","New_F17_1789_d04_rep2","rep2","obese","index","B","keep",1,NA,"obese_obese",NA
 "1790",NA,NA,NA,NA,NA,NA,"lean","aerosol","C","keep",3,NA,"lean_lean",NA
 "1793",NA,NA,NA,NA,NA,NA,"obese","direct","A","keep",2,NA,"obese_obese","no"
-"1794","F17","d06","New_F17_1794_d06_rep1","rep1","New_F17_1794_d06_rep2","rep2","obese","direct","B","keep",2,NA,"obese_obese",NA
 "1794","F17","d04","New_F17_1794_d04_rep1","rep1","New_F17_1794_d04_rep2","rep2","obese","direct","B","keep",2,NA,"obese_obese",NA
-"1794","F17","d08","New_F17_1794_d08_rep1","rep1","New_F17_1794_d08_rep2","rep2","obese","direct","B","keep",2,NA,"obese_obese",NA
 "1794","F17","d10","New_F17_1794_d10_rep1","rep1","New_F17_1794_d10_rep2","rep2","obese","direct","B","keep",2,NA,"obese_obese",NA
+"1794","F17","d06","New_F17_1794_d06_rep1","rep1","New_F17_1794_d06_rep2","rep2","obese","direct","B","keep",2,NA,"obese_obese",NA
+"1794","F17","d08","New_F17_1794_d08_rep1","rep1","New_F17_1794_d08_rep2","rep2","obese","direct","B","keep",2,NA,"obese_obese",NA
+"1794","F17","d02","New_F17_1794_d02_rep1","rep1","New_F17_1794_d02_rep2","rep2","obese","direct","B","keep",2,NA,"obese_obese",NA
 "1795",NA,NA,NA,NA,NA,NA,"obese","secondary","B","keep",4,NA,"obese_obese",NA
 "1796",NA,NA,NA,NA,NA,NA,"lean","aerosol","D","keep",3,NA,"lean_lean",NA
-"1797","F17","d08","New_F17_1797_d08_rep1","rep1","New_F17_1797_d08_rep2","rep2","lean","direct","D","keep",2,NA,"lean_lean",NA
 "1797","F17","d04","New_F17_1797_d04_rep1","rep1","New_F17_1797_d04_rep2","rep2","lean","direct","D","keep",2,NA,"lean_lean",NA
+"1797","F17","d08","New_F17_1797_d08_rep1","rep1","New_F17_1797_d08_rep2","rep2","lean","direct","D","keep",2,NA,"lean_lean",NA
 "1797","FCC","d06","New_FCC_1797_d06_rep1","rep1","New_FCC_1797_d06_rep2","rep2","lean","direct","D","keep",2,NA,"lean_lean",NA
 "1797","F17","d02","New_F17_1797_d02_rep1","rep1","New_F17_1797_d02_rep2","rep2","lean","direct","D","keep",2,NA,"lean_lean",NA
 "1797","F17","d06","New_F17_1797_d06_rep1","rep1","New_F17_1797_d06_rep2","rep2","lean","direct","D","keep",2,NA,"lean_lean",NA
-"1800","F17","d04","New_F17_1800_d04_rep1","rep1","New_F17_1800_d04_rep2","rep2","lean","index","C","keep",1,NA,"lean_lean",NA
-"1800","F17","d02","New_F17_1800_d02_rep1","rep1","New_F17_1800_d02_rep2","rep2","lean","index","C","keep",1,NA,"lean_lean",NA
 "1800","F17","d06","New_F17_1800_d06_rep1","rep1","New_F17_1800_d06_rep2","rep2","lean","index","C","keep",1,NA,"lean_lean",NA
+"1800","F17","d02","New_F17_1800_d02_rep1","rep1","New_F17_1800_d02_rep2","rep2","lean","index","C","keep",1,NA,"lean_lean",NA
+"1800","F17","d04","New_F17_1800_d04_rep1","rep1","New_F17_1800_d04_rep2","rep2","lean","index","C","keep",1,NA,"lean_lean",NA
 "1801","F17","d02","New_F17_1801_d02_rep1","rep1","New_F17_1801_d02_rep2","rep2","lean","index","D","keep",1,NA,"lean_lean",NA
 "1801","F17","d04","New_F17_1801_d04_rep1","rep1","New_F17_1801_d04_rep2","rep2","lean","index","D","keep",1,NA,"lean_lean",NA
 "1803",NA,NA,NA,NA,NA,NA,"lean","aerosol","A","keep",3,NA,"obese_obese","no"
@@ -45,9 +47,9 @@
 "1805",NA,NA,NA,NA,NA,NA,"lean","aerosol","B","keep",3,NA,"obese_obese",NA
 "1910","Sm18","d02","New_Sm18_1910_d02_rep1","rep1","New_Sm18_1910_d02_rep2","rep2","obese","index","E","keep",1,NA,"obese_obese",NA
 "1911",NA,NA,NA,NA,NA,NA,"obese","direct","E","keep",2,NA,"obese_obese","no"
+"1912","Sm18","d02","New_Sm18_1912_d02_rep1","rep1","New_Sm18_1912_d02_rep2","rep2","obese","index","F","keep",1,NA,"obese_obese",NA
 "1912","Sm18","d04","New_Sm18_1912_d04_rep1","rep1","New_Sm18_1912_d04_rep2","rep2","obese","index","F","keep",1,NA,"obese_obese",NA
 "1912","Sm18","d06","New_Sm18_1912_d06_rep1","rep1","New_Sm18_1912_d06_rep2","rep2","obese","index","F","keep",1,NA,"obese_obese",NA
-"1912","Sm18","d02","New_Sm18_1912_d02_rep1","rep1","New_Sm18_1912_d02_rep2","rep2","obese","index","F","keep",1,NA,"obese_obese",NA
 "1913","Sm18","d10","New_Sm18_1913_d10_rep1","rep1","New_Sm18_1913_d10_rep2","rep2","lean","direct","M","keep",2,NA,"obese_lean",NA
 "1913","Sm18","d06","New_Sm18_1913_d06_rep1","rep1","New_Sm18_1913_d06_rep2","rep2","lean","direct","M","keep",2,NA,"obese_lean",NA
 "1913","Sm18","d08","New_Sm18_1913_d08_rep1","rep1","New_Sm18_1913_d08_rep2","rep2","lean","direct","M","keep",2,NA,"obese_lean",NA
@@ -59,21 +61,23 @@
 "1969","FCC","d02","New_FCC_1969_d02_rep1","rep1","New_FCC_1969_d02_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
 "1970","Sm18","d02","New_Sm18_1970_d02_rep1","rep1","New_Sm18_1970_d02_rep2","rep2","lean","index","G","keep",1,NA,"lean_obese",NA
 "1971",NA,NA,NA,NA,NA,NA,"lean","index","H","keep",1,NA,"lean_obese",NA
+"1973","Sm18","d06","New_Sm18_1973_d06_rep1","rep1","New_Sm18_1973_d06_rep2","rep2","lean","index","I","keep",1,NA,"lean_lean",NA
 "1973","Sm18","d02","New_Sm18_1973_d02_rep1","rep1","New_Sm18_1973_d02_rep2","rep2","lean","index","I","keep",1,NA,"lean_lean",NA
 "1974","Sm18","d04","New_Sm18_1974_d04_rep1","rep1","New_Sm18_1974_d04_rep2","rep2","lean","index","J","keep",1,NA,"lean_obese",NA
 "1974","Sm18","d02","New_Sm18_1974_d02_rep1","rep1","New_Sm18_1974_d02_rep2","rep2","lean","index","J","keep",1,NA,"lean_obese",NA
 "1975","Sm18","d04","New_Sm18_1975_d04_rep1","rep1","New_Sm18_1975_d04_rep2","rep2","obese","index","K","keep",1,NA,"obese_lean",NA
 "1975","Sm18","d06","New_Sm18_1975_d06_rep1","rep1","New_Sm18_1975_d06_rep2","rep2","obese","index","K","keep",1,NA,"obese_lean",NA
 "1976",NA,NA,NA,NA,NA,NA,"lean","direct","L","keep",2,NA,"lean_lean","no"
+"1977","Sm18","d06","New_Sm18_1977_d06_rep1","rep1","New_Sm18_1977_d06_rep2","rep2","lean","index","L","keep",1,NA,"lean_lean",NA
 "1977","Sm18","d02","New_Sm18_1977_d02_rep1","rep1","New_Sm18_1977_d02_rep2","rep2","lean","index","L","keep",1,NA,"lean_lean",NA
 "1978",NA,NA,NA,NA,NA,NA,"obese","secondary","E","keep",4,NA,"obese_obese",NA
 "1979",NA,NA,NA,NA,NA,NA,"obese","secondary","F","keep",4,NA,"obese_obese",NA
 "1980","Sm18","d06","New_Sm18_1980_d06_rep1","rep1","New_Sm18_1980_d06_rep2","rep2","obese","direct","H","keep",2,NA,"lean_obese",NA
 "1980","Sm18","d08","New_Sm18_1980_d08_rep1","rep1","New_Sm18_1980_d08_rep2","rep2","obese","direct","H","keep",2,NA,"lean_obese",NA
-"1980","Sm18","d02","New_Sm18_1980_d02_rep1","rep1","New_Sm18_1980_d02_rep2","rep2","obese","direct","H","keep",2,NA,"lean_obese",NA
 "1980","Sm18","d04","New_Sm18_1980_d04_rep1","rep1","New_Sm18_1980_d04_rep2","rep2","obese","direct","H","keep",2,NA,"lean_obese",NA
-"1981","FCC","d08","New_FCC_1981_d08_rep1","rep1","New_FCC_1981_d08_rep2","rep2","obese","direct","G","keep",2,NA,"lean_obese",NA
+"1980","Sm18","d02","New_Sm18_1980_d02_rep1","rep1","New_Sm18_1980_d02_rep2","rep2","obese","direct","H","keep",2,NA,"lean_obese",NA
 "1981","Sm18","d10","New_Sm18_1981_d10_rep1","rep1","New_Sm18_1981_d10_rep2","rep2","obese","direct","G","keep",2,NA,"lean_obese",NA
+"1981","FCC","d08","New_FCC_1981_d08_rep1","rep1","New_FCC_1981_d08_rep2","rep2","obese","direct","G","keep",2,NA,"lean_obese",NA
 "1982",NA,NA,NA,NA,NA,NA,"obese","aerosol","E","keep",3,NA,"obese_obese",NA
 "1983","FCC","d02","New_FCC_1983_d02_rep1","rep1","New_FCC_1983_d02_rep2","rep2","obese","index","M","keep",1,NA,"obese_lean",NA
 "1984","Sm18","d04","New_Sm18_1984_d04_rep1","rep1","New_Sm18_1984_d04_rep2","rep2","obese","index","N","keep",1,NA,"obese_lean",NA
@@ -81,59 +85,41 @@
 "1985",NA,NA,NA,NA,NA,NA,"obese","aerosol","F","keep",3,NA,"obese_obese",NA
 "1986","Sm18","d10","New_Sm18_1986_d10_rep1","rep1","New_Sm18_1986_d10_rep2","rep2","lean","direct","I","keep",2,NA,"lean_lean",NA
 "1987",NA,NA,NA,NA,NA,NA,"obese","direct","J","keep",2,NA,"lean_obese","no"
-"2230",NA,NA,NA,NA,NA,NA,"obese","aerosol","O","ignore",3,"look into","obese_lean",NA
 "2230",NA,NA,NA,NA,NA,NA,"obese","aerosol","P","keep",3,"look into","obese_obese",NA
-"2231","Sp19","d06","New_Sp19_2231_d06_rep1","rep1","New_Sp19_2231_d06_rep2","rep2","obese","direct","V","keep",2,NA,"lean_obese",NA
 "2231","FCC","d08","New_FCC_2231_d08_rep1","rep1","New_FCC_2231_d08_rep2","rep2","obese","direct","V","keep",2,NA,"lean_obese",NA
-"2232","FCC","d04","New_FCC_2232_d04_rep1","rep1","New_FCC_2232_d04_rep2","rep2","obese","index","O","ignore",1,"look into","obese_lean",NA
-"2232","FCC","d04","New_FCC_2232_d04_rep1","rep1","New_FCC_2232_d04_rep2","rep2","obese","direct","P","keep",2,"look into","obese_obese",NA
-"2232","Sp19","d06","New_Sp19_2232_d06_rep1","rep1","New_Sp19_2232_d06_rep2","rep2","obese","index","O","ignore",1,"look into","obese_lean",NA
-"2232","Sp19","d06","New_Sp19_2232_d06_rep1","rep1","New_Sp19_2232_d06_rep2","rep2","obese","direct","P","keep",2,"look into","obese_obese",NA
-"2232","Sp19","d02","New_Sp19_2232_d02_rep1","rep1","New_Sp19_2232_d02_rep2","rep2","obese","index","O","ignore",1,"look into","obese_lean",NA
+"2231","Sp19","d06","New_Sp19_2231_d06_rep1","rep1","New_Sp19_2231_d06_rep2","rep2","obese","direct","V","keep",2,NA,"lean_obese",NA
 "2232","Sp19","d02","New_Sp19_2232_d02_rep1","rep1","New_Sp19_2232_d02_rep2","rep2","obese","direct","P","keep",2,"look into","obese_obese",NA
-"2232","Sp19","d08","New_Sp19_2232_d08_rep1","rep1","New_Sp19_2232_d08_rep2","rep2","obese","index","O","ignore",1,"look into","obese_lean",NA
+"2232","Sp19","d06","New_Sp19_2232_d06_rep1","rep1","New_Sp19_2232_d06_rep2","rep2","obese","direct","P","keep",2,"look into","obese_obese",NA
+"2232","FCC","d04","New_FCC_2232_d04_rep1","rep1","New_FCC_2232_d04_rep2","rep2","obese","direct","P","keep",2,"look into","obese_obese",NA
 "2232","Sp19","d08","New_Sp19_2232_d08_rep1","rep1","New_Sp19_2232_d08_rep2","rep2","obese","direct","P","keep",2,"look into","obese_obese",NA
-"2233","Sp19","d04","New_Sp19_2233_d04_rep1","rep1","New_Sp19_2233_d04_rep2","rep2","obese","index","P","keep",1,"look into","obese_obese",NA
 "2233","FCC","d02","New_FCC_2233_d02_rep1","rep1","New_FCC_2233_d02_rep2","rep2","obese","index","P","keep",1,"look into","obese_obese",NA
+"2233","Sp19","d04","New_Sp19_2233_d04_rep1","rep1","New_Sp19_2233_d04_rep2","rep2","obese","index","P","keep",1,"look into","obese_obese",NA
 "2234","Sp19","d04","New_Sp19_2234_d04_rep1","rep1","New_Sp19_2234_d04_rep2","rep2","obese","index","Q","keep",1,"look into","obese_obese",NA
 "2235",NA,NA,NA,NA,NA,NA,"obese","direct","Q","keep",2,"look into","obese_obese","no"
-"2235",NA,NA,NA,NA,NA,NA,"obese","index","R","ignore",1,"look into","obese_obese","no"
-"2237",NA,NA,NA,NA,NA,NA,"obese","aerosol","R","ignore",3,"look into","obese_obese",NA
 "2237",NA,NA,NA,NA,NA,NA,"obese","aerosol","Q","keep",3,"look into","obese_obese",NA
 "2238",NA,NA,NA,NA,NA,NA,"obese","direct","W","keep",2,NA,"lean_obese",NA
-"2239","Sp19","d02","New_Sp19_2239_d02_rep1","rep1","New_Sp19_2239_d02_rep2","rep2","obese","direct","T","keep",2,"look into","obese_obese",NA
-"2239","Sp19","d02","New_Sp19_2239_d02_rep1","rep1","New_Sp19_2239_d02_rep2","rep2","obese","index","S","ignore",1,"look into","obese_lean",NA
 "2239","Sp19","d04","New_Sp19_2239_d04_rep1","rep1","New_Sp19_2239_d04_rep2","rep2","obese","direct","T","keep",2,"look into","obese_obese",NA
-"2239","Sp19","d04","New_Sp19_2239_d04_rep1","rep1","New_Sp19_2239_d04_rep2","rep2","obese","index","S","ignore",1,"look into","obese_lean",NA
 "2239","Sp19","d08","New_Sp19_2239_d08_rep1","rep1","New_Sp19_2239_d08_rep2","rep2","obese","direct","T","keep",2,"look into","obese_obese",NA
-"2239","Sp19","d08","New_Sp19_2239_d08_rep1","rep1","New_Sp19_2239_d08_rep2","rep2","obese","index","S","ignore",1,"look into","obese_lean",NA
+"2239","Sp19","d02","New_Sp19_2239_d02_rep1","rep1","New_Sp19_2239_d02_rep2","rep2","obese","direct","T","keep",2,"look into","obese_obese",NA
 "2239","Sp19","d10","New_Sp19_2239_d10_rep1","rep1","New_Sp19_2239_d10_rep2","rep2","obese","direct","T","keep",2,"look into","obese_obese",NA
-"2239","Sp19","d10","New_Sp19_2239_d10_rep1","rep1","New_Sp19_2239_d10_rep2","rep2","obese","index","S","ignore",1,"look into","obese_lean",NA
 "2239","Sp19","d06","New_Sp19_2239_d06_rep1","rep1","New_Sp19_2239_d06_rep2","rep2","obese","direct","T","keep",2,"look into","obese_obese",NA
-"2239","Sp19","d06","New_Sp19_2239_d06_rep1","rep1","New_Sp19_2239_d06_rep2","rep2","obese","index","S","ignore",1,"look into","obese_lean",NA
 "2240","FCC","d02","New_FCC_2240_d02_rep1","rep1","New_FCC_2240_d02_rep2","rep2","obese","index","T","keep",1,"look into","obese_obese",NA
 "2240","Sp19","d04","New_Sp19_2240_d04_rep1","rep1","New_Sp19_2240_d04_rep2","rep2","obese","index","T","keep",1,"look into","obese_obese",NA
 "2241",NA,NA,NA,NA,NA,NA,"obese","direct","U","keep",2,NA,"lean_obese","no"
-"2242",NA,NA,NA,NA,NA,NA,"obese","aerosol","S","ignore",3,"look into","obese_lean",NA
 "2242",NA,NA,NA,NA,NA,NA,"obese","aerosol","T","keep",3,"look into","obese_obese",NA
-"2243","Sp19","d04","New_Sp19_2243_d04_rep1","rep1","New_Sp19_2243_d04_rep2","rep2","obese","direct","R","ignore",2,"look into","obese_obese",NA
-"2243","Sp19","d06","New_Sp19_2243_d06_rep1","rep1","New_Sp19_2243_d06_rep2","rep2","obese","direct","R","ignore",2,"look into","obese_obese",NA
-"2243","Sp19","d08","New_Sp19_2243_d08_rep1","rep1","New_Sp19_2243_d08_rep2","rep2","obese","direct","R","ignore",2,"look into","obese_obese",NA
-"2244",NA,NA,NA,NA,NA,NA,"lean","direct","O","ignore",2,"look into","obese_lean","no"
-"2246",NA,NA,NA,NA,NA,NA,"lean","direct","S","ignore",2,"look into","obese_lean","no"
-"2251","Sp19","d04","New_Sp19_2251_d04_rep1","rep1","New_Sp19_2251_d04_rep2","rep2","lean","index","U","keep",1,NA,"lean_obese",NA
+"2243","Sp19","d04","New_Sp19_2243_d04_rep1","rep1","New_Sp19_2243_d04_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
+"2243","Sp19","d06","New_Sp19_2243_d06_rep1","rep1","New_Sp19_2243_d06_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
+"2243","Sp19","d08","New_Sp19_2243_d08_rep1","rep1","New_Sp19_2243_d08_rep2","rep2",NA,NA,NA,NA,NA,NA,NA,NA
 "2251","Sp19","d06","New_Sp19_2251_d06_rep1","rep1","New_Sp19_2251_d06_rep2","rep2","lean","index","U","keep",1,NA,"lean_obese",NA
-"2253","Sp19","d08","New_Sp19_2253_d08_rep1","rep1","New_Sp19_2253_d08_rep2","rep2","lean","index","V","keep",1,NA,"lean_obese",NA
+"2251","Sp19","d04","New_Sp19_2251_d04_rep1","rep1","New_Sp19_2251_d04_rep2","rep2","lean","index","U","keep",1,NA,"lean_obese",NA
 "2253","Sp19","d04","New_Sp19_2253_d04_rep1","rep1","New_Sp19_2253_d04_rep2","rep2","lean","index","V","keep",1,NA,"lean_obese",NA
+"2253","Sp19","d08","New_Sp19_2253_d08_rep1","rep1","New_Sp19_2253_d08_rep2","rep2","lean","index","V","keep",1,NA,"lean_obese",NA
+"2254","Sp19","d06","New_Sp19_2254_d06_rep1","rep1","New_Sp19_2254_d06_rep2","rep2","lean","index","W","keep",1,NA,"lean_obese",NA
+"2254","Sp19","d08","New_Sp19_2254_d08_rep1","rep1","New_Sp19_2254_d08_rep2","rep2","lean","index","W","keep",1,NA,"lean_obese",NA
 "2254","Sp19","d02","New_Sp19_2254_d02_rep1","rep1","New_Sp19_2254_d02_rep2","rep2","lean","index","W","keep",1,NA,"lean_obese",NA
 "2254","Sp19","d04","New_Sp19_2254_d04_rep1","rep1","New_Sp19_2254_d04_rep2","rep2","lean","index","W","keep",1,NA,"lean_obese",NA
-"2254","Sp19","d06","New_Sp19_2254_d06_rep1","rep1","New_Sp19_2254_d06_rep2","rep2","lean","index","W","keep",1,NA,"lean_obese",NA
-"2867",NA,NA,NA,NA,NA,NA,"obese","index","X","ignore",1,"ignore for now","na",NA
-"2868",NA,NA,NA,NA,NA,NA,"obese","index","Y","ignore",1,"ignore for now","na",NA
-"2869",NA,NA,NA,NA,NA,NA,"obese","aerosol","X","ignore",3,"ignore for now","na",NA
-"2870",NA,NA,NA,NA,NA,NA,"obese","aerosol","Y","ignore",3,"ignore for now","na",NA
-"HK1073","W17","stock","ReSeq_W17_HK1073_rep1","rep1","ReSeq_W17_HK1073_rep2","rep2","stock","stock","Z","keep",0,NA,"stock_stock",NA
-"HK1073","F17","stock","ReSeq_F17_HK1073_rep1","rep1","ReSeq_F17_HK1073_rep2","rep2","stock","stock","Z","keep",0,NA,"stock_stock",NA
-"HK1073","Sp20","stock","ReSeq_Sp20_HK1073_rep1","rep1","ReSeq_Sp20_HK1073_rep2","rep2","stock","stock","Z","keep",0,NA,"stock_stock",NA
-"HK1073","Sm18","stock","ReSeq_Sm18_HK1073_rep1","rep1","ReSeq_Sm18_HK1073_rep2","rep2","stock","stock","Z","keep",0,NA,"stock_stock",NA
-"HK1073","Sp19","stock","ReSeq_Sp19_HK1073_rep1","rep1","ReSeq_Sp19_HK1073_rep2","rep2","stock","stock","Z","keep",0,NA,"stock_stock",NA
+"HK1073","Sp19","stock","ReSeq_Sp19_HK1073_rep1","rep1","ReSeq_Sp19_HK1073_rep2","rep2","stock","stock","AD","keep",0,NA,"stock_stock",NA
+"HK1073","F17","stock","ReSeq_F17_HK1073_rep1","rep1","ReSeq_F17_HK1073_rep2","rep2","stock","stock","AD","keep",0,NA,"stock_stock",NA
+"HK1073","Sp20","stock","ReSeq_Sp20_HK1073_rep1","rep1","ReSeq_Sp20_HK1073_rep2","rep2","stock","stock","AD","keep",0,NA,"stock_stock",NA
+"HK1073","W17","stock","ReSeq_W17_HK1073_rep1","rep1","ReSeq_W17_HK1073_rep2","rep2","stock","stock","AD","keep",0,NA,"stock_stock",NA
+"HK1073","Sm18","stock","ReSeq_Sm18_HK1073_rep1","rep1","ReSeq_Sm18_HK1073_rep2","rep2","stock","stock","AD","keep",0,NA,"stock_stock",NA

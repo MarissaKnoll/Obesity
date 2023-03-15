@@ -51,8 +51,9 @@ source(glue('{wkdir}/scripts/obese_PlotPrep.R'))
 
 ```{r}
 # loading in metadata and coverage data
-metafile = glue("{wkdir}/scripts/UPDATED.H9N2.metadata.csv")
+metafile = glue("{wkdir}/scripts/transmission_h9n2_use_long.csv")
 meta = read.csv(file=metafile,header=T,sep=",",na.strings = c('')) 
+meta = filter(metam flag == "keep")
 coverage_passfile = glue('{wkdir}/scripts/H9N2.coverage.pass.check.200.0.95.csv')
 cov_check = read.csv(file=coverage_passfile,header=T,sep=",",na.strings = c(''))
 ```
@@ -60,8 +61,8 @@ cov_check = read.csv(file=coverage_passfile,header=T,sep=",",na.strings = c(''))
 ```{r}
 # filter for samples that either pass with a yes OR has good average coverage and percentage cov at 200x is > 80
 cov_filt_names = cov_check %>% filter(pass == 'YES' | 
-                                      mean_coverage >= 500  | 
-                                      percentage > 0.7) %>% 
+                                      mean_coverage >= 200  | 
+                                      percentage > 0.4) %>% 
             select(name, segment) %>% 
             unique()
 
@@ -192,7 +193,7 @@ write.csv(m, glue('{wkdir}/scripts/UPDATED.H9N2.metadata.csv'), row.names = FALS
 
 ```{r}
 temp = meta %>% 
-        filter(inf_route %in% c('Index','Contact')) %>% 
+        filter(type %in% c('index','direct')) %>% 
         unique() %>% 
         select(pair, type, ferret_id) %>% unique() %>% 
         pivot_wider(names_from = 'type', values_from = 'ferret_id')
@@ -325,11 +326,16 @@ p4_alt = reps_df %>%
     select(segment, NewGap, EstimatedFragLength, ferret_weight, type) %>%
     unique() %>%
     ggplot(., aes(x= EstimatedFragLength)) + 
-    geom_histogram(color = 'black') + 
+    geom_histogram(color = 'black', binwidth = 50) + 
     facet_grid(type~ferret_weight) +
     PlotTheme1 +
     labs(x="estimated DVG frag. length (nt)", y='number of unique DVG species') 
 print(p4_alt)
+ggsave(p4_alt,
+       filename = glue("{wkdir}/DVG_figures/deletion.size.bydiet.bytype.pdf"),
+       width = 10,
+       height = 5, limitsize=FALSE, useDingbats = FALSE)
+
 ```
 
 ```{r}
@@ -757,30 +763,54 @@ Sm18_denovo = Sm18_index %>% filter((DVG %in% Sm18_index_dvg)) %>% filter(!(DVG 
 Sp19_shared = Sp19_index %>% filter(DVG %in% Sp19_stock_dvg) %>% filter((DVG %in% Sp19_index_dvg)) %>% unique()
 Sp19_denovo = Sp19_index %>% filter((DVG %in% Sp19_index_dvg)) %>% filter(!(DVG %in% Sp19_stock_dvg)) %>% unique()
 
-Sp20_shared = Sp20_index %>% filter(DVG %in% Sp20_stock_dvg) %>% filter((DVG %in% Sp20_index_dvg)) %>% unique()
-Sp20_denovo = Sp20_index %>% filter((DVG %in% Sp20_index_dvg)) %>% filter(!(DVG %in% Sp20_stock_dvg)) %>% unique()
+Sp20_shared = Sp20_index %>% filter(DVG %in% Sp20_stock_dvg) %>% filter((DVG %in% Sp20_index_dvg)) %>% unique() # still not working
+Sp20_denovo = Sp20_index %>% filter((DVG %in% Sp20_index_dvg)) %>% filter(!(DVG %in% Sp20_stock_dvg)) %>% unique() # still not working
 
-
+stock_shared = rbind(F17_shared,W17_shared,Sm18_shared,Sp19_shared,Sp20_shared)
+index_unique = rbind(F17_denovo,W17_denovo,Sm18_denovo,Sp19_denovo,Sp20_denovo)
 ```
 
+```{r}
+stock_obese = filter(stock_shared, ferret_weight == "obese") 
+o_dvg = unique(stock_obese$DVG)
+
+stock_lean = filter(stock_shared, ferret_weight == "lean") 
+l_dvg = unique(stock_lean$DVG)
+
+stock_dvg <- list(Obese = o_dvg, Lean = l_dvg)
+
+StockDVGs = ggVennDiagram(stock_dvg)
+print(StockDVGs)
+ggsave(StockDVGs, file = "StockDVGs.pdf", path = saveitdir)
+
+ShockSharedDVGs = ggplot(stock_shared, aes(x = dpi, y = DVG)) +
+  geom_point() +
+  geom_line(aes(group = DVG)) +
+  facet_grid(~segment) +
+  PlotTheme1
+print(ShockSharedDVGs)
+ggsave(ShockSharedDVGs, file = "ShockSharedDVGs.pdf", path = saveitdir)
+```
 Are there diet-specific DVGs in index ferrets?
 ```{r}
-index_obese = filter(index, ferret_weight == "obese") 
+index_obese = filter(index_unique, ferret_weight == "obese") 
 o_dvg = unique(index_obese$DVG)
 
-index_lean = filter(index, ferret_weight == "lean") 
+index_lean = filter(index_unique, ferret_weight == "lean") 
 l_dvg = unique(index_lean$DVG)
 
 diet_dvg <- list(Obese = o_dvg, Lean = l_dvg)
 
-#DietUniqueDVGs = ggVennDiagram(diet_dvg)
-#print(DietUniqueDVGs)
-#ggsave(DietUniqueDVGs, file = "DietUniqueDVGs.pdf", path = saveitdir)
+DietUniqueDVGs = ggVennDiagram(diet_dvg)
+print(DietUniqueDVGs)
+ggsave(DietUniqueDVGs, file = "DietUniqueDVGs.pdf", path = saveitdir)
+```
 
-lean = index %>% 
+Pulling out diet-specific DVGs
+```{r}
+lean = index_lean %>% 
   filter(DVG %in% l_dvg) %>% 
   filter(!(DVG %in% o_dvg)) %>%
-  filter(!(DVG %in% stock)) %>%
   unique()
 
 lean = lean %>%
@@ -790,10 +820,9 @@ lean = lean %>%
 mult_lean = filter(lean, totalsamp > 1) %>% 
   unique()
 
-obese = index %>% 
+obese = index_unique %>% 
   filter((DVG %in% o_dvg)) %>%
   filter(!(DVG %in% l_dvg)) %>% 
-  filter(!(DVG %in% stock)) %>%
   unique()
 
 obese = obese %>%
@@ -808,11 +837,13 @@ mult_obese = filter(obese, totalsamp > 1) %>%
 ggplot(lean, aes(x = DVG)) +
   geom_histogram(stat = "count")
 
-ggplot(lean, aes(y = DVG)) +
+LeanDVGs = ggplot(lean, aes(y = DVG)) +
   geom_point(aes(x = NewStart)) +
   geom_point(aes(x = NewEnd)) +
   facet_grid(~factor(segment, levels = SEGMENTS)) +
   PlotTheme1
+print(LeanDVGs)
+ggsave(LeanDVGs, file = "LeanDVGs.pdf", path = saveitdir)
 
 ggplot(lean, aes(x = dpi, y = DVG)) +
   geom_point() +
@@ -829,11 +860,13 @@ ggplot(mult_lean, aes(x = dpi, y = DVG)) +
 ggplot(obese, aes(x = DVG)) +
   geom_histogram(stat = "count")
 
-ggplot(obese, aes(y = DVG)) +
+ObeseDVGs = ggplot(obese, aes(y = DVG)) +
   geom_point(aes(x = NewStart)) +
   geom_point(aes(x = NewEnd)) +
   facet_grid(~factor(segment, levels = SEGMENTS)) +
   PlotTheme1
+print(ObeseDVGs)
+ggsave(ObeseDVGs, file = "ObeseDVGs.pdf", path = saveitdir)
 
 ggplot(obese, aes(x = dpi, y = DVG)) +
   geom_point() +

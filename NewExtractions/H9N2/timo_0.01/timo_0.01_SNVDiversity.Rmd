@@ -408,33 +408,31 @@ t.test(o_bottle$bottleneck_size, l_bottle$bottleneck_size)
 
 Setting up AF dataframes for bottleneck calculation: Index to contact ferrets
 ```{r}
-af_df = select(vdf, sample, segment, ntpos, stocknt, major, minor,minorfreq, cohort, inf_route, ferretID, diet, DPI) %>%
-  ungroup() %>%
-  unique()
-af_df$var = paste0(af_df$segment,"_",af_df$major,"_",af_df$ntpos,"_",af_df$minor)
 
-samples = unique(af_df$pairs)
-  
-ferret_files_dir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/freqfiles/transmission"
-  
-for(i in samples){
-  print(i)
-  
-  i = filter(af_df, pair == i, inf_route == "Index")
-  c = filter(af_df, pair == i, inf_route == "Contact")
-  
-  comp = merge(i, c, by = c("segment", "ntpos","stocknt","major","minor","cohort","var"), all.x = TRUE)
-  comp$minorfreq.y[is.na(comp$minorfreq.y)] = 0
-  
-  df = select(comp,minorfreq.x,minorfreq.y)
-  write.table(df, file = glue("{ferret_files_dir}/{i}_{c}_freqs.csv"), row.names = FALSE, col.names = FALSE)
-  
-}
 ```
 
 Turnover rate
 ```{r}
-head(vdf)
+multiday = ungroup(minorvdf) %>%
+  filter(inf_route == "Index") %>%
+  select(ferretID, DPI) %>% 
+  unique() %>%
+  group_by(ferretID) %>%
+  tally() %>%
+  filter(n > 1)
 
+select_samps = c("2254")
+  unique(multiday$ferretID)
 
+for(i in select_samps){
+  
+  print(i)
+  df = filter(minorvdf, ferretID == i)
+  print(head(df))
+  days = unique(df$DPI)
+  print(days)
+  
+  df_day = group_by(df, DPI) %>% tally()
+  print(df_day)
+}
 ```
