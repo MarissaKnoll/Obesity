@@ -73,4 +73,4 @@ ferret_id,ferret_weight,type,pair,flag,chain_position,notes,index_direct,worked
 1413,lean,direct,AB,keep,2,,lean_lean,
 1414,obese,index,AC,keep,1,,obese_obese,
 1415,obese,index,AC,keep,2,,obese_obese,
-HK1073,stock,stock,Z,keep,0,,stock_stock,
+HK1073,stock,stock,AD,keep,0,,stock_stock,
