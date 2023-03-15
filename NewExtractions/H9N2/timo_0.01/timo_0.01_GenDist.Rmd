@@ -271,11 +271,10 @@ mfit2 = as.data.frame(mfit$points)
 mfit2$name = rownames(man)
 mfit2 = merge(mfit2, meta, by.x = c('name'), by.y = c('sample')) 
 
+interesting = c("1414_d06")
 ggplot() +
-    geom_point(data = mfit2, aes(x=V1, y= V2,shape = diet, color =inf_route), size = 2) +
-    geom_text(data = mfit2 %>% filter(diet == 'Control'), 
-                aes(x=V1, y= V2,label = name), 
-       hjust=0, vjust=0, angle=45) +
+    geom_point(data = mfit2, aes(x=V1, y= V2,shape = diet, color =cohort), size = 2) +
+    #geom_text(data = mfit2 %>% filter(name %in% interesting), aes(x=V1, y= V2,label = name), hjust=0, vjust=0, angle=45) +
     PlotTheme1
 ```
 
@@ -286,14 +285,12 @@ efit2 = as.data.frame(efit$points)
 efit2$name = rownames(euc)
 efit2 = merge(efit2, meta, by.x = c('name'), by.y = c('sample')) 
 
-interesting = c("1414_d06","Sp20_HK1073","Sp19_HK1073","Sm18_HK1073","F17_HK1073")
+interesting = c("1414_d06")
   
 ggplot() +
-  geom_point(data = efit2, aes(x=V1, y= V2,shape = diet, color =inf_route), size = 2) +
-  geom_text(data = efit2 %>% filter(name %in% interesting),
-            aes(x=V1, y= V2,label = name),
-            hjust=0, vjust=0, angle=45) +
-  #facet_grid(~inf_route) +
+  geom_point(data = efit2, aes(x=V1, y= V2,shape = diet, color =cohort), size = 2) +
+  #geom_text(data = efit2 %>% filter(name %in% interesting), aes(x=V1, y= V2,label = name), hjust=0, vjust=0, angle=45) +
+  #facet_grid(~DPI) +
   PlotTheme1
 ```
 
@@ -374,10 +371,10 @@ print(L2_stock_index)
 ob_d02 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
                   cohort.x == cohort.y &
                   diet.y == "Obese" & DPI.y == "d02")
-ob_d04 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
+ln_d02 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
                   cohort.x == cohort.y &
-                  diet.y == "Obese" & DPI.y == "d04")
-t.test(ln_d02$dist,ln_d04$dist)
+                  diet.y == "Lean" & DPI.y == "d02")
+t.test(ln_d02$dist,ln_d02$dist)
 ```
 
 ```{r}
@@ -407,29 +404,36 @@ index_contact_pairs = filter(man_long_p,
                              inf_route.x == "Index" & 
                                inf_route.y == "Contact" & 
                                pair_numbers.x == pair_numbers.y) %>%
-  mutate(cat = "Index -> Contact (Pairs)")
-# 10 LN -> LN, 2 LN -> OB, 26 OB -> OB
+  mutate(cat = "Index -> Contact (Pairs)") %>%
+# 10 LN -> LN, 2 LN -> OB, 22 OB -> OB
+  filter(cat != "LN>OB")
 
 index_contact_notpairs = filter(man_long_p, 
                                 inf_route.x == "Index" & 
                                   inf_route.y == "Contact" & 
                                   pair_numbers.x != pair_numbers.y) %>%
   mutate(cat = "Index -> Contact (Not Pairs)")
+index_contact_notpairs_lean = filter(index_contact_notpairs, diet.x == "Lean" & diet.y == "Lean") # only considering between lean ferrets
+index_contact_notpairs_obese = filter(index_contact_notpairs, diet.x == "Obese" & diet.y == "Obese") # only considering between obese
+
+index_contact_notpairs = rbind(index_contact_notpairs_lean, index_contact_notpairs_obese)
 
 man_comps = rbind(stock_index, index_contact_pairs, index_contact_notpairs)
 man_comps$cat = factor(man_comps$cat, levels = c("Stock -> Index","Index -> Contact (Pairs)","Index -> Contact (Not Pairs)"))
 ```
 
 ```{r}
-ggplot(man_comps) +
+Transmission_GenDist = ggplot(man_comps) +
   geom_boxplot(aes(x = cat, y = dist, color = diet.y), outlier.shape =  NA, width = 0.5) +
-#  geom_jitter(aes(x = cat, y = dist, group = diet.y, color = diet.y), width = 0.1) +
+  #geom_jitter(aes(x = cat, y = dist, group = diet.y, color = diet.y), width = 0.1) +
   ggtitle("L1-norm between index samples and stock") +
   xlab("Comparison") +
   ylab("L1-norm (Man. distance)") +
   PlotTheme1 +
-  DietcolScale
-# the outliers are all comparisons to 1415_d02 which is weird
+  DietcolScale +
+  theme(axis.text.x = element_text(angle = 0))
+print(Transmission_GenDist)
+ggsave(Transmission_GenDist, file = "Transmission_GenDist.pdf", path = savedir)
 ```
 
 ```{r}
@@ -458,71 +462,14 @@ print(Man_plot2)
 ggsave("Man_plot2.pdf", Man_plot2, width = 10, height = 5, path = savedir)
 ```
 
-Stock to Index Day 2 comparisons (Stock -> Lean, Stock -> Obese)
 ```{r}
-ggplot(filter(man_long_m, 
-              cohort == "W17", 
-              comp == "W17_HK1073", 
-              inf_route == "Index", 
-              DPI == "d02"), 
-       aes(x = diet, y = dist)) +
-  geom_boxplot() +
-  geom_jitter(width = 0.1) +
-  PlotTheme1
-# had to filter by comp so the individual samples would keep their metadata
+LnLnPairs = filter(man_comps2, cat == "Lean -> Lean Pairs")
+ObObPairs = filter(man_comps2, cat == "Obese -> Obese Pairs")
+t.test(LnLnPairs$dist, ObObPairs$dist)
 
-ggplot(filter(man_long_m, 
-              cohort == "F17", 
-              comp == "F17_HK1073", 
-              inf_route == "Index", 
-              DPI == "d02"), 
-       aes(x = diet, y = dist)) +
-  geom_boxplot() +
-  geom_jitter(width = 0.1) +
-  PlotTheme1
-
-ggplot(filter(man_long_m, 
-              cohort == "Sm18", 
-              comp == "Sm18_HK1073", 
-              inf_route == "Index", 
-              DPI == "d02"), 
-       aes(x = diet, y = dist)) +
-  geom_boxplot() +
-  geom_jitter(width = 0.1) +
-  PlotTheme1
-
-ggplot(filter(man_long_m, 
-              cohort == "Sp20", 
-              comp == "Sp20_HK1073", 
-              inf_route == "Index", 
-              DPI == "d02"), 
-       aes(x = diet, y = dist)) +
-  geom_boxplot() +
-  geom_jitter(width = 0.1) +
-  PlotTheme1
-# no samples from this cohort found
-
-#Sp19 samples are good, the stock is missing -> not in good samples
-```
-#compare stock -> index over DPI (expectation is more distant over time)
-```{r}
-ggplot(filter(man_long_m, cohort == "W17", comp == "W17_HK1073", inf_route == "Index"), 
-       aes(x = DPI, y = dist)) +
-  geom_boxplot(aes(group = "diet")) +
-  geom_jitter(width = 0.1, aes(color = diet)) +
-  PlotTheme1
-
-ggplot(filter(man_long_m, cohort == "F17", comp == "F17_HK1073", inf_route == "Index"), 
-       aes(x = DPI, y = dist)) +
-  geom_boxplot() +
-  geom_jitter(width = 0.1, aes(color = diet)) +
-  PlotTheme1
-
-ggplot(filter(man_long_m, cohort == "Sm18", comp == "Sm18_HK1073", inf_route == "Index"), 
-       aes(x = DPI, y = dist)) +
-  geom_boxplot() +
-  geom_jitter(width = 0.1, aes(color = diet)) +
-  PlotTheme1
+LnStock_LnIndex = filter(man_comps2, cat == "Stock -> Index" & diet.y == "Lean")
+LnLnPairs = filter(man_comps2, cat == "Lean -> Lean Pairs")
+t.test(LnStock_LnIndex$dist, LnLnPairs$dist)
 ```
 
 Add transmission data
