@@ -467,9 +467,9 @@ LnLnPairs = filter(man_comps2, cat == "Lean -> Lean Pairs")
 ObObPairs = filter(man_comps2, cat == "Obese -> Obese Pairs")
 t.test(LnLnPairs$dist, ObObPairs$dist)
 
-LnStock_LnIndex = filter(man_comps2, cat == "Stock -> Index" & diet.y == "Lean")
-LnLnPairs = filter(man_comps2, cat == "Lean -> Lean Pairs")
-t.test(LnStock_LnIndex$dist, LnLnPairs$dist)
+ObOb_NotPairs = filter(man_comps2, cat == "Index -> Contact (Not Pairs)" & diet.x == "Obese" & diet.y == "Obese")
+ObObPairs = filter(man_comps2, cat == "Obese -> Obese Pairs")
+t.test(ObOb_NotPairs$dist, ObObPairs$dist)
 ```
 
 Add transmission data
