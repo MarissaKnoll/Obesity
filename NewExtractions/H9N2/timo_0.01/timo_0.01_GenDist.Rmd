@@ -349,7 +349,7 @@ L1_stock_index = ggplot(filter(man_long, inf_route.x == "Control" &
   PlotTheme1 +
   DietcolScale
 print(L1_stock_index)
-#ggsave("L1_stock_index.pdf",L1_stock_index,path = savedir)
+ggsave("L1_stock_index.pdf",L1_stock_index,path = savedir)
 
 L2_stock_index = ggplot(filter(euc_long, inf_route.x == "Control" & 
                 inf_route.y == "Index" &
@@ -363,7 +363,7 @@ L2_stock_index = ggplot(filter(euc_long, inf_route.x == "Control" &
   PlotTheme1 +
   DietcolScale
 print(L2_stock_index)
-#ggsave("L2_stock_index.pdf",L2_stock_index,path = savedir)
+ggsave("L2_stock_index.pdf",L2_stock_index,path = savedir)
 ```
 
 ```{r}
@@ -477,10 +477,5 @@ Add transmission data
 #compare d02 index -> all contact time points (do the contacts diverge from their donors over time)
 #compare last time point index - last time point contact
 ```{r}
-ggplot(filter(dist_long_pairs, cohort.x == "Sm18" & cohort.y == "Sm18" & pair_numbers.x == pair_numbers.y, dist > 0), 
-       aes(x = inf_route.x, y = dist)) +
-  geom_boxplot() +
-  geom_jitter(width = 0.1, aes(color = diet.x)) +
-  facet_grid(~pair_diets.x) +
-  PlotTheme1
+
 ```
