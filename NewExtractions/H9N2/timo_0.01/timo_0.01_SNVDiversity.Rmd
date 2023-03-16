@@ -124,6 +124,14 @@ nrow(vdf)
 # does not eliminate any variants here
 ```
 
+How many variants per sample?
+```{r}
+nums = vdf %>% group_by(sample) %>% tally()
+range(nums$n)
+ggplot(nums, aes(x = n)) +
+  geom_histogram(binwidth = 1) +
+  PlotTheme1
+```
 Adding metadata
 ```{r}
 vdf = merge(vdf,meta, by = c("sample","segment"))
@@ -273,7 +281,7 @@ gen_pairs_plot = ggplot(gen_count_pairs , aes(x=DPI , y = snv_count, color = die
   PlotTheme1 +
   DietcolScale
 print(gen_pairs_plot)
-ggsave("gen_pairs_plot_all.pdf", gen_pairs_plot, path = savedir)
+#ggsave("gen_pairs_plot_all.pdf", gen_pairs_plot, path = savedir)
 ```
 
 Calculating Shannon Entropy
