@@ -63,7 +63,7 @@ cov$segment = factor(cov$segment, levels = SEGMENTS)
 
 Checking if data passes thresholds 
 ```{r}
-cov_check = CoverageAcross(cov,cov_cut,70,sizes, wkdir)
+cov_check = CoverageAcross(cov,cov_cut,40,sizes, wkdir)
 ```
 
 Merging coverage check info with the rest of the metadata
@@ -91,6 +91,41 @@ vdf = vdf[!duplicated(vdf), ] %>% droplevels()
 nrow(vdf)
 ```
 
+Adding metadata
+```{r}
+vdf = merge(vdf,meta, by = c("sample","segment"))
+vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+
+vdf$segment = factor(vdf$segment, levels = SEGMENTS)
+```
+
+How many unique ferrets? How many unique good quality ferrets?
+```{r}
+select(vdf, ferretID) %>% unique() %>% count()
+#total number of unique ferrets that were sequenced
+
+select(vdf, ferretID,quality) %>% unique() %>% filter(quality == "good") %>% nrow()
+select(vdf, ferretID,quality) %>% unique() %>% filter(quality == "good")
+#number of ferrets with at least one sample passing cov_check QC
+
+filter(vdf, quality == "bad") %>% select(sample) %>% unique()
+#samples that failed cov_check QC
+# mostly late time points
+# d02 time points: 1417 is an aerosol, most other aerosol samples weren't resequenced 
+#c1913 is contact lean,1981 and 1986 and 2235 are contact obese 
+```
+
+```{r}
+nrow(vdf)
+vdf = filter(vdf, quality == "good") %>% unique()
+nrow(vdf)
+
+vdf = filter(vdf, sample != "2244_d12") %>% unique()
+#technically passes due to the low coverage threhold needed to include W17 but has incomplete segments that aren't the Pol genes
+
+good_names = c(levels(factor(vdf$sample)))
+```
+
 Filtering variant df by timo binocheck
 ```{r}
 vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
@@ -98,19 +133,11 @@ vdf_bino = filter(vdf, binocheck != "False")
 vdf_bino = vdf_bino[!duplicated(vdf_bino), ] %>% droplevels()
 nrow(vdf_bino)
 # this really gets rid of a lot of variants (~1000)
-
-vdf_nobino = filter(vdf, binocheck != "True")
-vdf_nobino = vdf_nobino[!duplicated(vdf_nobino), ] %>% droplevels()
-nrow(vdf_nobino)
-
-range(vdf_nobino$minorfreq)
-ggplot(vdf_nobino, aes(x = minorfreq)) +
-  geom_histogram(binwidth = 0.01) +
-  PlotTheme1
 ```
 
 Filtering variant df with frequency cutoffs
 ```{r}
+nrow(vdf)
 vdf = filter(vdf, minorfreq1 >= freq_cut & 
                minorfreq2 >= freq_cut & 
                minor %in% ntlist &
@@ -118,36 +145,22 @@ vdf = filter(vdf, minorfreq1 >= freq_cut &
             droplevels()
 # based on MAF study, reps and 0.01% cutoff was best combo
 #filter each replicate separately rather than using the average
-
-vdf = vdf[!duplicated(vdf), ] %>% droplevels()
 nrow(vdf)
 # does not eliminate any variants here
+
+vdf = filter(vdf, inf_route == "Index" | inf_route == "Contact" | inf_route == "Control") %>% unique()
+# ignoring aerosol for now
 ```
 
 How many variants per sample?
 ```{r}
 nums = vdf %>% group_by(sample) %>% tally()
 range(nums$n)
+mean(nums$n)
+
 ggplot(nums, aes(x = n)) +
   geom_histogram(binwidth = 1) +
   PlotTheme1
-```
-Adding metadata
-```{r}
-vdf = merge(vdf,meta, by = c("sample","segment"))
-vdf = vdf[!duplicated(vdf), ] %>% droplevels()
-
-vdf$segment = factor(vdf$segment, levels = SEGMENTS)
-
-vdf = filter(vdf, inf_route == "Index" | inf_route == "Contact" | inf_route == "Control")
-# ignoring aerosol for now
-```
-
-```{r}
-vdf = filter(vdf, quality == "good")
-vdf = vdf[!duplicated(vdf), ] %>% droplevels()
-
-good_names = c(levels(factor(vdf$sample)))
 ```
 
 ```{r}
@@ -193,6 +206,21 @@ minorvdf = minorvdf[!duplicated(minorvdf), ]
 nrow(vdf) - nrow(minorvdf)
 ```
 
+```{r}
+freq_dist = ggplot() +
+  geom_histogram(aes(x = minorfreq, fill = diet), filter(vdf, inf_route == "Index"), binwidth = 0.025) +
+  geom_histogram(aes(x = majorfreq, fill = diet), filter(con_change, inf_route == "Index"), binwidth = 0.025) +
+  facet_grid(~diet) +
+  PlotTheme1 +
+  DietcolScale_fill
+print(freq_dist)
+ggsave(freq_dist, file = "freq_dist.pdf", path = savedir)
+
+o_freq = filter(vdf, inf_route == "Index" & diet == "Obese")
+l_freq = filter(vdf, inf_route == "Index" & diet == "Lean")
+t.test(o_freq$minorfreq, l_freq$minorfreq)
+```
+
 Tallying SNVs
 ```{r}
 # can make these groupings whatever you want
@@ -236,7 +264,6 @@ gen_count_avg = group_by(gen_count, DPI, diet, inf_route) %>%
 seg_count_avg = group_by(seg_count, DPI, diet) %>%
   mutate(avgSNV = mean(snv_count), sdSNV = sd(snv_count))
 ```
-
 
 ```{r}
 snv_count_segment_plot = filter(seg_count, inf_route == "Index") %>% 
@@ -334,6 +361,20 @@ Test for significance
 o = filter(shan_g, DPI == "Stock" & diet == "Control")
 l = filter(shan_g, DPI == "d06" & diet == "Lean")
 t.test(o$normalized_shannon,l$normalized_shannon)
+```
+
+Does higher titer correlate with more diversity?
+```{r}
+titers = select(meta, sample, ferretID, DPI, titer, log10_titer)
+gen_count_titers = merge(gen_count, titers, by = c("ferretID","DPI"))
+
+Titer_SNV_Corr = ggplot(filter(gen_count_titers, log10_titer > 1), aes(x = log10_titer, y = snv_count)) +
+  geom_point() +
+  geom_smooth(method = "glm") +
+  facet_grid(~inf_route) +
+  PlotTheme1
+print(Titer_SNV_Corr)
+ggsave(Titer_SNV_Corr, file = "Titer_SNV_Corr.pdf", path = savedir)
 ```
 
 dNdS analysis

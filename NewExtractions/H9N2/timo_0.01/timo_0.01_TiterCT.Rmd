@@ -87,7 +87,7 @@ cov$segment = factor(cov$segment, levels = SEGMENTS)
 
 Checking if data passes thresholds & make coverage plots
 ```{r}
-cov_check = CoverageAcross(cov,cov_cut,70,sizes, wkdir)
+cov_check = CoverageAcross(cov,cov_cut,40,sizes, wkdir)
 ```
 
 ```{r}
@@ -116,34 +116,25 @@ count(meta,quality)
 
 # Making titer plots
 ```{r}
-ggplot(filter(meta, DPI == "d02" | DPI == "d04" | DPI == "d06" |
-                DPI == "d08" |DPI == "d10" | DPI == "d12"),
-       aes(x = DPI, y = log10_titer, color = diet)) +
-  geom_point() +
-  geom_line(aes(group = ferretID)) +
-  facet_grid(~inf_route) +
-  PlotTheme1 +
-  DietcolScale
-
 # don't have titer information for W17 cohort (probably were never measured)
 # don't have this info past day 6 for some ferrets sacrificed for pathology at St Jude's
 
 m1 = filter(meta, titer != "NA" & titer != "sacrificed") %>%
   filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
                 DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
-  group_by(inf_route, diet, DPI,cohort) %>%
+  group_by(inf_route, diet, DPI) %>%
   mutate(avg_titer = mean(titer)) %>%
   mutate(avg_log_titer = mean(log10_titer)) %>%
   ungroup()
 
-avg_titer = ggplot(filter(m1, inf_route == "Index" | inf_route == "Contact"), 
-              aes(x = DPI, y = avg_log_titer, color = cohort)) +
+avg_titer = ggplot(filter(m1,inf_route == "Index" | inf_route == "Contact"), 
+              aes(x = DPI, y = avg_log_titer, color = diet)) +
   geom_point(size = 3) +
-  geom_line(aes(group = cohort), size = 1.5) +
-  facet_grid(diet~inf_route) +
+  geom_line(aes(group = diet), size = 1.5) +
+  facet_grid(~inf_route) +
   ylim(0,6) + 
-  PlotTheme1 #+
-#  DietcolScale
+  PlotTheme1 +
+  DietcolScale
 print(avg_titer)
 ggsave("avg_titer.pdf", avg_titer, path = savedir, width = 10, height = 5)
 
@@ -167,43 +158,6 @@ avg_titer_nozeroes = ggplot(filter(m1_good,inf_route == "Index" | inf_route == "
 print(avg_titer_nozeroes)
 ggsave("avg_titer_nozeroes.pdf",avg_titer_nozeroes,path = savedir,width = 7, height = 5)
 
-m1_all = filter(meta, titer != "NA" & titer != "sacrificed") %>%
-  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
-                DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
-  group_by(diet, DPI) %>%
-  mutate(avg_titer = mean(titer)) %>%
-  mutate(avg_log_titer = mean(log10_titer)) %>%
-  ungroup()
-
-avg_titer_all = ggplot(filter(m1_all,inf_route == "Index" | inf_route == "Contact"), 
-              aes(x = DPI, y = avg_log_titer, color = diet)) +
-  geom_point(size = 3) +
-  geom_line(aes(group = diet), size = 1.5) +
-  ylim(0,6) + 
-  PlotTheme1 +
-  DietcolScale
-print(avg_titer_all)
-
-m1_all_good = filter(meta, quality == "good") %>% 
-  filter(titer != "NA" & titer != "sacrificed") %>%
-  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" |
-                DPI == "d08" | DPI == "d10" | DPI == "d12") %>%
-  group_by(diet, DPI) %>%
-  mutate(avg_titer = mean(titer)) %>%
-  mutate(avg_log_titer = mean(log10_titer)) %>%
-  ungroup()
-
-avg_titer_all_good= ggplot(filter(m1_all_good,inf_route == "Index" | inf_route == "Contact"), 
-              aes(x = DPI, y = avg_log_titer, color = diet)) +
-  geom_point(size = 3) +
-  geom_line(aes(group = diet), size = 1.5) +
-  ylim(0,6) + 
-  PlotTheme1 +
-  DietcolScale
-print(avg_titer_all_good)
-
-ggplot(meta, aes(x = quality, y = log10_titer)) +
-  geom_point()
 ```
 
 Ct Values
