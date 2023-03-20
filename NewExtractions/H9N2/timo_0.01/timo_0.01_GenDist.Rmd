@@ -359,7 +359,8 @@ L2_stock_index = ggplot(filter(euc_long, inf_route.x == "Control" &
   facet_grid(~DPI.y,scales = 'free', space ='free') +
   ggtitle("L2-norm between index samples and stock") +
   xlab("Diet of index ferret") +
-  ylab("L2-norm (Euc. distance)") +
+  ylab("L2-norm (Euc. distance)") + 
+  ylim(0,5) +
   PlotTheme1 +
   DietcolScale
 print(L2_stock_index)

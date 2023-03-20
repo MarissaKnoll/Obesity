@@ -102,7 +102,7 @@ cov$segment = factor(cov$segment, levels = SEGMENTS)
 
 Checking if data passes thresholds
 ```{r}
-cov_check = CoverageAcross(cov,cov_cut,70,sizes, wkdir)
+cov_check = CoverageAcross(cov,cov_cut,40,sizes, wkdir)
 cov_qual = select(cov_check, name, quality)
 cov_avgtiter = merge(cov, cov_qual, by = c("name"))
 ```
@@ -163,8 +163,9 @@ ggplot(filter(con_change, quality == "good", inf_route == "Contact"), aes(x = DP
 ```
 ```{r}
 con_change$aa_change = paste0(con_change$stockaa,"_",con_change$aapos,"_",con_change$majoraa)
+con_change$nt_change = paste0(con_change$stocknt,"_",con_change$ntpos,"_",con_change$major)
 
-cons = select(con_change, ferretID, segment, aa_change, diet, inf_route) 
+cons = select(con_change, ferretID, segment, nonsyn, nt_change,aa_change, majorfreq, diet, inf_route) 
 write.csv(cons, "consensus_changes.csv", row.names = FALSE)
 ```
 

@@ -503,12 +503,15 @@ vdf_stocks = filter(vdf, inf_route == "Index")
 vdf_stocks$ntvar = paste0(vdf_stocks$segment,"_",vdf_stocks$major,"_",vdf_stocks$ntpos,"_",vdf_stocks$minor)
 vdf_stocks = filter(vdf_stocks, ntvar %in% keep_vars)
 
-ggplot(filter(vdf_stocks, inf_route == "Index"), aes(x = DPI, y = minorfreq, color = ferretID)) +
+stockvar_index = ggplot(filter(vdf_stocks, inf_route == "Index"), aes(x = DPI, y = minorfreq, color = diet)) +
   geom_point() +
   geom_line(aes(group = ferretID)) +
   facet_grid(~ntvar) +
-  PlotTheme1
-```
+  PlotTheme1 +
+  DietcolScale
+print(stockvar_index)
+ggsave(stockvar_index, file = "stockvar_index.pdf",path = savedir, width = 10, height = 5)
+ ```
 
 Loading in data after running bottleneck code
 ```{r}
@@ -527,11 +530,6 @@ ggplot(filter(stock_index, smallest_timepoint == "yes"), aes(x = diet, y = bottl
 o_bottle = filter(stock_index, diet == "Obese" & smallest_timepoint == "yes")
 l_bottle = filter(stock_index, diet == "Lean" & smallest_timepoint == "yes")
 t.test(o_bottle$bottleneck_size, l_bottle$bottleneck_size)
-```
-
-Setting up AF dataframes for bottleneck calculation: Index to contact ferrets
-```{r}
-
 ```
 
 Turnover rate
@@ -557,5 +555,49 @@ for(i in select_samps){
   
   df_day = group_by(df, DPI) %>% tally()
   print(df_day)
+}
+```
+
+Setting up AF dataframes for bottleneck calculation: Index to contact ferrets
+```{r}
+af_df = select(vdf, sample, segment, ntpos, stocknt, major, minor,minorfreq, cohort, inf_route, ferretID, diet, DPI) %>%
+  ungroup() %>%
+  unique()
+af_df$var = paste0(af_df$segment,"_",af_df$major,"_",af_df$ntpos,"_",af_df$minor)
+df = merge(af_df, pairs, by = c("ferretID"))
+
+index = filter(df, inf_route == "Index") %>% unique()
+first_time = c("1409_d04","1410_d02","1415_d02","1794_d02","1797_d02",
+               "1913_d06","1914_d06","1980_d02","1981_d10","1986_d10","2231_d04","2232_d02","2239_d04","2243_d04")
+contact = filter(df, sample %in% first_time) %>% unique()
+
+samples = unique(index$sample)
+  
+ferret_dir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/freqfiles/transmission"
+data = data.frame()
+  
+for(i in samples){
+  print(i)
+  
+  n = filter(index, sample == i)
+  partner = unique(n$pair_numbers)
+  c = filter(contact, pair_numbers %in% partner)
+  
+  if(nrow(c) > 0){
+    
+    s = unique(c$sample)
+  
+    comp = merge(n, c, by = c("segment", "ntpos","stocknt","major","minor","cohort","var"), all.x = TRUE)
+    comp$minorfreq.y[is.na(comp$minorfreq.y)] = 0
+  
+    df = select(comp,minorfreq.x,minorfreq.y)
+    write.table(df, file = glue("{ferret_dir}/{i}_{s}_freqs.csv"), row.names = FALSE, col.names = FALSE)
+    
+  }else(print("No transmission"))
+  
+  
+  #var_af = select(comp, var, minorfreq.x,minorfreq.y) %>% 
+  #  mutate(sample = i)
+  #data = rbind(data,var_af)
 }
 ```
