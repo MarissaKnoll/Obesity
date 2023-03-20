@@ -291,24 +291,43 @@ ggplot(. , aes(x = diet, y = snv_count)) +
 print(gen_count_segment_plot)
 ggsave("gen_count_segment_plot.pdf",gen_count_segment_plot,path=savedir, width = 10, height = 5)
 
+seg_count$diet_segment = paste0(seg_count$diet,"_",seg_count$segment)
+seg_count$diet_segment = factor(seg_count$diet_segment, 
+                                levels =c ('Control_H9N2_PB2','Lean_H9N2_PB2','Obese_H9N2_PB2',
+                                           'Control_H9N2_PB1','Lean_H9N2_PB1','Obese_H9N2_PB1',
+                                           'Control_H9N2_PA','Lean_H9N2_PA','Obese_H9N2_PA',
+                                           'Control_H9N2_HA','Lean_H9N2_HA','Obese_H9N2_HA',
+                                           'Control_H9N2_NP','Lean_H9N2_NP','Obese_H9N2_NP',
+                                           'Control_H9N2_NA','Lean_H9N2_NA','Obese_H9N2_NA',
+                                           'Control_H9N2_MP','Lean_H9N2_MP','Obese_H9N2_MP',
+                                           'Control_H9N2_NS','Lean_H9N2_NS','Obese_H9N2_NS'))
+
+seg_count_segment_plot = filter(seg_count, inf_route == "Index" | inf_route == "Control") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "Stock") %>%
+ggplot(. , aes(x = diet_segment, y = snv_count)) +
+  geom_boxplot(outlier.shape = NA, position = "dodge", aes(color = diet)) +
+  #geom_jitter(width = 0.2, aes(color = diet)) +
+  facet_grid(~DPI) +
+  ylab("SNV richness per sample per segment") +
+  PlotTheme1 +
+  DietcolScale
+print(seg_count_segment_plot)
+ggsave("seg_count_segment_plot.pdf",seg_count_segment_plot,path=savedir, width = 10, height = 5)
 # 03/07 now includes consensus changes (using vdf instead of minorvdf)
 ```
 
+T test for segment comparisons
 ```{r}
-gen_count_pairs = merge(gen_count, pairs, by = c("ferretID"))
+o = filter(seg_count, inf_route == "Index" & diet == "Obese" & DPI == "d06" & segment == "H9N2_NS")
+l = filter(seg_count, inf_route == "Index" & diet == "Lean" & DPI == "d06" & segment == "H9N2_NS")
+t.test(o$snv_count, l$snv_count)
 
-gen_pairs_plot = ggplot(gen_count_pairs , aes(x=DPI , y = snv_count, color = diet)) +
-  geom_point(aes(group = diet), size = 2) +
-  geom_line(aes(group = ferretID)) +
-  #geom_errorbar(aes(ymin = avgSNV - sdSNV,
-  #                  ymax = avgSNV + sdSNV)) +
-  ylab("Average number of SNVs per sample") +
-  xlab("Days after infection") +
-  facet_grid(pair_diets~inf_route) +
-  PlotTheme1 +
-  DietcolScale
-print(gen_pairs_plot)
-#ggsave("gen_pairs_plot_all.pdf", gen_pairs_plot, path = savedir)
+# d06: PB1, PA, NA are sig. diff
+# nothing else is sig. diff
+
+o_gen = filter(gen_count, inf_route == "Index" & diet == "Obese" & DPI == "d06")
+l_gen = filter(gen_count, inf_route == "Index" & diet == "Lean" & DPI == "d06")
+t.test(o_gen$snv_count, l_gen$snv_count)
 ```
 
 Calculating Shannon Entropy
@@ -415,6 +434,7 @@ index = filter(af_df, inf_route == "Index") %>% unique()
 samples = unique(index$sample)
   
 stock_files_dir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/freqfiles/stock"
+data = data.frame()
   
 for(i in samples){
   print(i)
@@ -430,15 +450,69 @@ for(i in samples){
   df = select(comp,minorfreq.x,minorfreq.y)
   write.table(df, file = glue("{stock_files_dir}/Stock_{i}_freqs.csv"), row.names = FALSE, col.names = FALSE)
   
+  var_af = select(comp, var, minorfreq.x,minorfreq.y) %>% 
+    mutate(sample = i)
+  data = rbind(data,var_af)
 }
+```
 
+What happens to the stock variants in the index(af)?
+```{r}
+lowest_timepoint = c("1408_d02","1414_d04","1416_d02","1789_d02","1800_d02","1801_d02","1910_d02","1912_d02",
+                     "1968_d02","1970_d02","1972_d02","1973_d02","1974_d02","1975_d04","1977_d02","1984_d02",
+                     "2233_d04","2234_d04","2240_d04","2251_d04","2253_d04","2254_d02")
+data = data %>% 
+  filter(sample %in% lowest_timepoint) %>% 
+  group_by(sample)
+write.table(data, file = "stock_variants_index.csv", sep = ",", row.names = FALSE)
+# I'm dumb and could do this faster in excel than figuring out the code for it - go back and adjust
+df = read.csv("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/stock_variants_index_kl.csv")
+meta_noseg = select(meta, sample, ferretID, DPI, cohort, inf_route, diet, STRAIN, quality) %>% unique()
+
+df1 = group_by(df, sample) %>% 
+  count(dynamics) %>% 
+  filter(n != 18) %>% 
+  # one weird empty row with an n of 18 at the top, get rid of this
+  pivot_wider(names_from = dynamics, values_from = n) %>%
+  mutate(totalvar = kept +lost) %>%
+  mutate(percent_lost = lost/totalvar)
+
+df1 = merge(df1, meta_noseg, by = c("sample"))
+
+stock_lost = ggplot(df1, aes(x = diet, y = percent_lost)) +
+  geom_boxplot() +
+  geom_jitter(aes(color = diet), width = 0.2) +
+  PlotTheme1 +
+  DietcolScale
+print(stock_lost)
+ggsave(stock_lost, file = "stock_lost.pdf", path = savedir)
+
+o = filter(df1, diet == "Obese")
+l = filter(df1, diet == "Lean")
+t.test(o$percent_lost, l$percent_lost)
+mean(o$percent_lost)
+mean(l$percent_lost)
+mean(df1$percent_lost)
+```
+What happens to the variants in the stock in the index ferrets? (af)
+```{r}
+kept = filter(df, dynamics == "kept")
+keep_vars = unique(kept$var)
+
+vdf_stocks = filter(vdf, inf_route == "Index")
+vdf_stocks$ntvar = paste0(vdf_stocks$segment,"_",vdf_stocks$major,"_",vdf_stocks$ntpos,"_",vdf_stocks$minor)
+vdf_stocks = filter(vdf_stocks, ntvar %in% keep_vars)
+
+ggplot(filter(vdf_stocks, inf_route == "Index"), aes(x = DPI, y = minorfreq, color = ferretID)) +
+  geom_point() +
+  geom_line(aes(group = ferretID)) +
+  facet_grid(~ntvar) +
+  PlotTheme1
 ```
 
 Loading in data after running bottleneck code
 ```{r}
 stock_index = read.csv("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/freqfiles/stock/all_stock_bottlenecks.csv")
-meta_noseg = select(meta, sample, ferretID, DPI, cohort, inf_route, diet, STRAIN, quality) %>% unique()
-
 stock_index = merge(stock_index, meta_noseg, by = c("sample","ferretID","DPI"))
 ```
 
@@ -483,7 +557,5 @@ for(i in select_samps){
   
   df_day = group_by(df, DPI) %>% tally()
   print(df_day)
-  
-  
 }
 ```

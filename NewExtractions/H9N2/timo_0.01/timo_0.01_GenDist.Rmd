@@ -61,7 +61,7 @@ cov$segment = factor(cov$segment, levels = SEGMENTS)
 
 Checking if data passes thresholds & make coverage plots
 ```{r}
-cov_check = CoverageAcross(cov,cov_cut,70,sizes, wkdir)
+cov_check = CoverageAcross(cov,cov_cut,40,sizes, wkdir)
 ```
 
 Merging coverage check info with the rest of the metadata
