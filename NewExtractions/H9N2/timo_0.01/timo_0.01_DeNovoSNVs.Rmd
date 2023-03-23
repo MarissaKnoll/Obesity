@@ -300,7 +300,7 @@ t = unique(shared$ntvar)
 
 for(i in t){
   print(i)
-  df = filter(temp, ntvar == i)
+  df = filter(shared, ntvar == i)
   df1 = group_by(df,pair_numbers) %>% tally()
   # here a 2 means that the two ferrets are in the same transmission pair and a 1 indicateds different transmission pairs
   df2 = merge(df, df1, by = c("pair_numbers"))
@@ -397,7 +397,9 @@ shared = ferunique %>%
   group_by(ntvar) %>% 
   mutate(count = 1, totalsamp = sum(count))
 
-SharedPlot = ggplot(shared, aes(x = ntpos, y = segment)) +
+SharedPlot = ggplot(shared, 
+                    aes(x = ntpos,
+                        y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
   geom_point(aes(size = totalsamp, color = nonsyn)) +
   ggtitle("Number of samples containing each variant - Shared between diet groups") +
   theme(legend.key = element_blank(),
@@ -406,7 +408,7 @@ SharedPlot = ggplot(shared, aes(x = ntpos, y = segment)) +
   facet_grid(~inf_route) +
   PlotTheme1
 print(SharedPlot)
-#ggsave(SharedPlot, filename = "SegmentSNVPlot_DietShared.pdf", path = savedir)
+ggsave(SharedPlot, filename = "SegmentSNVPlot_DietShared.pdf", path = savedir)
 ```
 
 ```{r}
@@ -418,6 +420,10 @@ Minorfreq_dist = ggplot(ferunique, aes(x = minorfreq, fill = diet)) +
 print(Minorfreq_dist)
 ggsave("Minorfreq_dist.pdf", Minorfreq_dist, path = savedir)
 # obese seem to have fewer low-frequency de novo SNVs
+
+o = filter(ferunique, inf_route == "Contact" & diet == "Obese")
+l = filter(ferunique, inf_route == "Contact" & diet == "Lean")
+t.test(o$minorfreq, l$minorfreq)
 ```
 
 ```{r}
