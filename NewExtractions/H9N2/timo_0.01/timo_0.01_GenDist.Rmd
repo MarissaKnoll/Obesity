@@ -352,15 +352,16 @@ print(L1_stock_index)
 ggsave("L1_stock_index.pdf",L1_stock_index,path = savedir)
 
 L2_stock_index = ggplot(filter(euc_long, inf_route.x == "Control" & 
-                inf_route.y == "Index" &
-                cohort.x == cohort.y)) +
+                                 inf_route.y == "Index" &
+                                 cohort.x == cohort.y &
+                                 DPI.y %in% c("d02","d04","d06"))) +
   geom_boxplot(aes(x = diet.y, y = dist), outlier.shape =  NA, width = 0.5) +
   geom_jitter(aes(x = diet.y, y = dist, group = diet.y, color = diet.y), width = 0.1) +
   facet_grid(~DPI.y,scales = 'free', space ='free') +
   ggtitle("L2-norm between index samples and stock") +
   xlab("Diet of index ferret") +
-  ylab("L2-norm (Euc. distance)") + 
-  ylim(0,5) +
+  ylab("L2-norm distance to stock") + 
+  #ylim(0,5) +
   PlotTheme1 +
   DietcolScale
 print(L2_stock_index)

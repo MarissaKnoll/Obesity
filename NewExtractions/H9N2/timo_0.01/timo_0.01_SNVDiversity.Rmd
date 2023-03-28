@@ -472,19 +472,14 @@ contact = filter(df, sample %in% first_time) %>% unique()
 samples = unique(index$sample)
   
 ferret_dir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/freqfiles/transmission"
-data = data.frame()
+tran_df = data.frame()
   
 for(i in samples){
   print(i)
   
   n = filter(index, sample == i)
-  print(head(n))
-  print(nrow(n))
   partner = unique(n$pair_numbers)
-  print(partner)
   c = filter(contact, pair_numbers %in% partner)
-  print(head(c))
-  print(nrow(c))
   
   if(nrow(c) > 0){
     
@@ -495,10 +490,13 @@ for(i in samples){
   
     df = select(comp,minorfreq.x,minorfreq.y)
     write.table(df, file = glue("{ferret_dir}/{i}_{s}_freqs.csv"), row.names = FALSE, col.names = FALSE)
+    
+    transmission_af = select(comp, var, minorfreq.x,minorfreq.y, pair_numbers.x)
+    tran_df = rbind(tran_df,transmission_af)
    
-  }else(print("No transmission"))
-  
+    }else(print("No transmission"))
 }
+
 ```
 
 What happens to the stock variants in the index(af)?
@@ -597,6 +595,46 @@ o_bottle = filter(stock_index, diet == "Obese" & smallest_timepoint == "yes")
 l_bottle = filter(stock_index, diet == "Lean" & smallest_timepoint == "yes")
 t.test(o_bottle$bottleneck_size, l_bottle$bottleneck_size)
 ```
+How many SNVs are transmitted?
+```{r}
+index_contact_snv = filter(tran_df, minorfreq.y > 0) %>% 
+  mutate(transmitted = "yes")
+index_contact_nosnv = filter(tran_df, minorfreq.y == 0) %>% 
+  mutate(transmitted = "no")
+
+tran_df_count = rbind(index_contact_snv,index_contact_nosnv) %>%
+  group_by(pair_numbers.x,transmitted) %>%
+  tally() %>%
+  pivot_wider(names_from = transmitted, values_from = n) %>%
+  mutate(perc_transmitted = yes / no + yes) %>% 
+  unique()
+
+meta_small = select(meta, ferretID,cohort,inf_route,diet,STRAIN)
+meta_small_pairs = merge(meta_small, pairs, by = c("ferretID"))
+
+tran_df_count = merge(tran_df_count, meta_small_pairs, by.x = c("pair_numbers.x"), by.y = c("pair_numbers")) %>% 
+  unique() %>%
+  filter(inf_route == "Contact")
+tran_df_count$perc_transmitted[is.na(tran_df_count$perc_transmitted)] = 0
+```
+
+```{r}
+transmitted_snvs_diets = ggplot(tran_df_count, aes(x = pair_diets, y = perc_transmitted)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, aes(color = diet)) +
+  PlotTheme1 +
+  DietcolScale
+print(transmitted_snvs_diets)
+ggsave(transmitted_snvs_diets, file = "transmitted_snvs_diets.pdf", path = savedir)
+
+transmitted_snvs_all = ggplot(tran_df_count, aes(x = STRAIN, y = perc_transmitted)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  PlotTheme1 +
+  DietcolScale
+print(transmitted_snvs_all)
+ggsave(transmitted_snvs_all, file = "transmitted_snvs_all.pdf", path = savedir, height = 5, width = 5)
+```
 
 Turnover rate
 ```{r}
@@ -643,7 +681,6 @@ for(i in select_samps){
 ```
 
 ```{r}
-meta_small = select(meta, ferretID,cohort,inf_route,diet,STRAIN)
 turns = merge(turnover, meta_small, by = c("ferretID")) %>% unique
 turns$days = as.character(turns$days)
 

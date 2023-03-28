@@ -53,7 +53,7 @@ source(glue('{wkdir}/scripts/obese_PlotPrep.R'))
 # loading in metadata and coverage data
 metafile = glue("{wkdir}/scripts/transmission_h9n2_use_long.csv")
 meta = read.csv(file=metafile,header=T,sep=",",na.strings = c('')) 
-meta = filter(metam flag == "keep")
+meta = filter(meta, flag == "keep")
 coverage_passfile = glue('{wkdir}/scripts/H9N2.coverage.pass.check.200.0.95.csv')
 cov_check = read.csv(file=coverage_passfile,header=T,sep=",",na.strings = c(''))
 ```
@@ -62,9 +62,11 @@ cov_check = read.csv(file=coverage_passfile,header=T,sep=",",na.strings = c(''))
 # filter for samples that either pass with a yes OR has good average coverage and percentage cov at 200x is > 80
 cov_filt_names = cov_check %>% filter(pass == 'YES' | 
                                       mean_coverage >= 200  | 
-                                      percentage > 0.4) %>% 
+                                      percentage > 0.7) %>% 
             select(name, segment) %>% 
             unique()
+
+cov_filt_names = filter(cov_filt_names, name != "2244_d12") %>% unique()
 
 # check segment count
 cov_filt_names = cov_filt_names %>% group_by(name) %>% add_tally(name = 'segment_tally') %>% 
@@ -214,6 +216,8 @@ print(levels(factor(m$type)))
 
 ```{r}
 m$type = factor(m$type, levels = c('stock','index','direct'))
+
+m = m %>% filter(name.x != is.na(name.x)) %>% unique()
 ```
 
 ```{r}
@@ -834,56 +838,73 @@ mult_obese = filter(obese, totalsamp > 1) %>%
 ```
 
 ```{r}
-ggplot(lean, aes(x = DVG)) +
-  geom_histogram(stat = "count")
+lean_uniques = lean %>%
+  ungroup() %>% 
+  select(segment,DVG_group,GroupBoundaries,totalsamp) %>% 
+  unique() %>% 
+  arrange(desc(totalsamp))
+print(lean_uniques)
 
-LeanDVGs = ggplot(lean, aes(y = DVG)) +
-  geom_point(aes(x = NewStart)) +
-  geom_point(aes(x = NewEnd)) +
-  facet_grid(~factor(segment, levels = SEGMENTS)) +
-  PlotTheme1
-print(LeanDVGs)
-ggsave(LeanDVGs, file = "LeanDVGs.pdf", path = saveitdir)
-
-ggplot(lean, aes(x = dpi, y = DVG)) +
-  geom_point() +
-  geom_line(aes(group = DVG)) +
-  facet_grid(~factor(segment, levels = SEGMENTS)) +
-  PlotTheme1
-
-ggplot(mult_lean, aes(x = dpi, y = DVG)) +
-  geom_point() +
-  geom_line(aes(group = DVG)) +
-  facet_grid(~factor(segment, levels = SEGMENTS)) +
-  PlotTheme1
-
-ggplot(obese, aes(x = DVG)) +
-  geom_histogram(stat = "count")
-
-ObeseDVGs = ggplot(obese, aes(y = DVG)) +
-  geom_point(aes(x = NewStart)) +
-  geom_point(aes(x = NewEnd)) +
-  facet_grid(~factor(segment, levels = SEGMENTS)) +
-  PlotTheme1
-print(ObeseDVGs)
-ggsave(ObeseDVGs, file = "ObeseDVGs.pdf", path = saveitdir)
-
-ggplot(obese, aes(x = dpi, y = DVG)) +
-  geom_point() +
-  geom_line(aes(group = DVG)) +
-  facet_grid(~factor(segment, levels = SEGMENTS)) +
-  PlotTheme1
-
-ggplot(mult_obese, aes(x = dpi, y = DVG)) +
-  geom_point() +
-  geom_line(aes(group = DVG)) +
-  facet_grid(~factor(segment, levels = SEGMENTS)) +
-  PlotTheme1
+obese_uniques = obese %>%
+  ungroup() %>% 
+  select(segment,DVG_group,GroupBoundaries,totalsamp) %>% 
+  unique() %>% 
+  arrange(desc(totalsamp))
+print(obese_uniques)
 ```
-```{r}
 
-```
-Are DVGs transmitted
+Are DVGs transmitted?
 ```{r}
-ggplot(reps_df, aes(x = ))
+dvg_df = select(reps_df, ferret_day, ferret_id, dpi, ferret_weight, type, segment, DVG_group, GroupBoundaries, pair, index_direct, pair_ids) %>%
+  ungroup() %>%
+  unique()
+dvg_df$seg_dvg = paste0(dvg_df$segment,"_",dvg_df$DVG_group)
+
+index = filter(dvg_df, type == "index") %>% unique()
+first_time = c("1794_d04","1797_d02","1913_d06","1914_d06","1980_d02","1981_d10","1986_d10","2231_d06","2232_d02","2239_d02")
+early_time = c("1794_d04","1797_d02","1980_d02","2232_d02","2239_d02")
+direct = filter(dvg_df, ferret_day %in% first_time) %>% unique()
+ 
+samples = unique(index$ferret_day)
+  
+dvg_transmitted = data.frame()
+  
+for(i in samples){
+  print(i)
+  
+  n = filter(index, ferret_day == i)
+  partner = unique(n$pair_ids)
+  d = filter(direct, pair_ids %in% partner)
+  
+  if(nrow(d) > 0){
+    
+    s = unique(d$ferret_day)
+    print(s)
+  
+    comp = merge(n, d, by = c("index_direct","pair_ids","pair","segment","seg_dvg","DVG_group","GroupBoundaries"), all.x = TRUE) %>%
+      count(pair_ids,ferret_day.x, ferret_day.y)
+    colnames(comp) = c("pair_ids","index","contact","count")
+     
+    dvg_transmitted = rbind(dvg_transmitted, comp)
+   
+  }else(print("No transmission"))
+  
+}
+
+#dvg_transmitted = dvg_transmitted %>% 
+#  pivot_wider(names_from = contact, values_from = count)
+```
+
+```{r}
+ contact_dvgs = filter(dvg_df, type == "direct") %>% count(ferret_id,dpi,ferret_weight) %>%
+  ggplot(., aes(x = dpi, y = n, color = ferret_weight)) +
+  geom_point() +
+  geom_line(aes(group = ferret_id)) +
+  facet_grid(~ferret_id) +
+  ylab("DVG richness") +
+  xlab("DPI") +
+  PlotTheme1 +
+  weight_colScale
+print(contact_dvgs)
+ggsave(contact_dvgs, file = "contact_dvgs.pdf", path = saveitdir)
 ```

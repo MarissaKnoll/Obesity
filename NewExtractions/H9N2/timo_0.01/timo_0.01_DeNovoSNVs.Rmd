@@ -296,8 +296,9 @@ dietunique = rbind(lean,obese) %>% unique()
 dietunique = merge(dietunique, pairs, by = c("ferretID"))
 
 shared = filter(dietunique, n == 2)
-n = data.frame()
 t = unique(shared$ntvar)
+
+transmitted = data.frame()
 
 for(i in t){
   print(i)
@@ -307,15 +308,16 @@ for(i in t){
   df2 = merge(df, df1, by = c("pair_numbers"))
   # add this information back into the dataframe
   df2$transmission = df2$n.y
-  n = rbind(n, df2)
+  transmitted = rbind(transmitted, df2)
 }
 
 #formatting stuff
 notshared = filter(dietunique, n == 1)
 notshared$transmission = 0
-n$n = n$n.x
-n = n %>% select(!(n.x)) %>% select(!(n.y))
-dietunique = rbind(notshared, n)
+transmitted$n = transmitted$n.x
+transmitted = transmitted %>% select(!(n.x)) %>% select(!(n.y))
+
+dietunique = rbind(notshared, transmitted)
 dietunique$transmission = as.character(dietunique$transmission)
 ```
 
@@ -334,34 +336,29 @@ print(DietUnique)
 
 ```{r}
 # make new version of this figure, separating out transmission v independent ferrets
-DietUnique_InfRoute = ggplot(filter(dietunique), 
+DietUnique = ggplot(filter(dietunique), 
                              aes(x = ntpos, 
                                  y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
   geom_point(aes(color = nonsyn, size = n)) + 
   ggtitle("Number of samples containing each variant - diet specific") +
   xlab("Nucleotide position") +
   ylab("Segment") +
-  theme(legend.key = element_blank(),
-         strip.background = element_rect(colour="black", fill="white"),
-         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_grid(~diet) +
   PlotTheme1
-print(DietUnique_InfRoute)
-ggsave(DietUnique_InfRoute, filename = "SegmentSNVPlot_DietUnqique.pdf", path = savedir, width = 15, height = 10)
+print(DietUnique)
+ggsave(DietUnique, filename = "SegmentSNVPlot_DietUnqique.pdf", path = savedir, width = 15, height = 10)
 
 
-ggplot(filter(dietunique, n > 1, nonsyn == "nonsyn"), 
+DietUnique_Transmission = ggplot(filter(dietunique, n > 1, nonsyn != "syn"), 
                              aes(x = ntpos, 
                                  y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
-  geom_point(aes(color = transmission, size = n)) + 
+  geom_point(aes(color = transmission, size = 2, shape = transmission)) + 
   ggtitle("Number of samples containing each variant - diet specific") +
   xlab("Nucleotide position") +
   ylab("Segment") +
-  theme(legend.key = element_blank(),
-         strip.background = element_rect(colour="black", fill="white"),
-         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   facet_grid(diet~inf_route) +
   PlotTheme1
+print(DietUnique_Transmission)
+ggsave(DietUnique_Transmission, file = "DietUnique_Transmission.pdf", width = 7, height = 5, path = savedir)
 ```
 
 Pulling out repeated nonsynonymous mutations
