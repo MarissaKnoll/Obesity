@@ -162,8 +162,8 @@ ggplot(filter(con_change, quality == "good", inf_route == "Contact"), aes(x = DP
   DietcolScale
 ```
 ```{r}
-con_change$aa_change = paste0(con_change$stockaa,"_",con_change$aapos,"_",con_change$majoraa)
-con_change$nt_change = paste0(con_change$stocknt,"_",con_change$ntpos,"_",con_change$major)
+con_change$aa_change = paste0(con_change$stockaa,con_change$aapos,con_change$majoraa)
+con_change$nt_change = paste0(con_change$stocknt,con_change$ntpos,con_change$major)
 
 cons = select(con_change, ferretID, segment, nonsyn, nt_change,aa_change, majorfreq, diet, inf_route) 
 write.csv(cons, "consensus_changes.csv", row.names = FALSE)
@@ -191,6 +191,9 @@ majpos = c("H9N2_NP_326","H9N2_PB1_1882","H9N2_HA_284","H9N2_PB1_965",
            "H9N2_PB1_1882")
   
 minorvdf$var = paste0(minorvdf$segment,"_",minorvdf$ntpos)
+minorvdf$aa_change = paste0(minorvdf$stockaa,minorvdf$aapos,minorvdf$majoraa)
+minorvdf$nt_change = paste0(minorvdf$stocknt,minorvdf$ntpos,minorvdf$major)
+
 pos_minors = filter(minorvdf, var %in% majpos)
 pos_minors$freq = pos_minors$minorfreq
 pos_minors = pos_minors[!duplicated(pos_minors), ] %>% droplevels()

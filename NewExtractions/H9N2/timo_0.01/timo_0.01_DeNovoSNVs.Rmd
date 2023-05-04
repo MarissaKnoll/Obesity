@@ -322,32 +322,22 @@ dietunique$transmission = as.character(dietunique$transmission)
 ```
 
 ```{r}
-DietUnique = ggplot(dietunique, aes(x = ntpos, y = segment)) +
-  geom_point(aes(color = nonsyn, size = n, shape = transmission)) + 
+DietUnique = ggplot(dietunique, 
+                    aes(x = ntpos,
+                        y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
+  geom_point(aes(color = nonsyn, size = n)) + 
+  geom_text(data = filter(dietunique, n == 2, nonsyn == "nonsyn"), aes(label = aavar, vjust = 2, hjust = 0.5)) +
   ggtitle("Number of samples containing each variant - diet specific") +
-  theme(legend.key = element_blank(),
-         strip.background = element_rect(colour="black", fill="white"),
-         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_grid(diet~STRAIN) +
+  facet_grid(STRAIN~diet) +
+  ylab("Segment") +
+  xlab("Nucleotide Position") +
   PlotTheme1
 print(DietUnique)
-#ggsave(DietUnique, filename = "SegmentSNVPlot_DietUnqique.pdf", path = savedir, width = 10, height = 5)
+ggsave(DietUnique, filename = "SegmentSNVPlot_DietUnqique.pdf", path = savedir, width = 10, height = 7)
 ```
 
 ```{r}
 # make new version of this figure, separating out transmission v independent ferrets
-DietUnique = ggplot(filter(dietunique), 
-                             aes(x = ntpos, 
-                                 y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
-  geom_point(aes(color = nonsyn, size = n)) + 
-  ggtitle("Number of samples containing each variant - diet specific") +
-  xlab("Nucleotide position") +
-  ylab("Segment") +
-  PlotTheme1
-print(DietUnique)
-ggsave(DietUnique, filename = "SegmentSNVPlot_DietUnqique.pdf", path = savedir, width = 15, height = 10)
-
-
 DietUnique_Transmission = ggplot(filter(dietunique, n > 1, nonsyn != "syn"), 
                              aes(x = ntpos, 
                                  y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
@@ -428,21 +418,19 @@ repeats_shared = shared %>%
   tally()
 # this is to make sure I'm not repeatedly counting a variant found in one ferret but multiple days 
 
-shared = merge(shared, repeats_shared, by = c("ntvar"))
+shared = merge(shared, repeats_shared, by = c("ntvar")) %>% unique()
 
 SharedPlot = ggplot(shared, 
                     aes(x = ntpos,
                         y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
   geom_point(aes(size = n, color = nonsyn)) +
+  geom_text(data = filter(shared, n > 4, nonsyn == "nonsyn"), aes(label = aavar, vjust = 2, hjust = 0.5)) +
   ggtitle("Number of samples containing each variant - Shared between diet groups") +
-  theme(legend.key = element_blank(),
-         strip.background = element_rect(colour="black", fill="white"),
-         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  xlab("Nucleotide position") +
   ylab("Segment") +
+  xlab("Nucleotide Position") +
   PlotTheme1
 print(SharedPlot)
-ggsave(SharedPlot, filename = "SegmentSNVPlot_DietShared.pdf", path = savedir)
+ggsave(SharedPlot, filename = "SegmentSNVPlot_DietShared.pdf", path = savedir, height = 10, width = 9)
 ```
 
 Extracting common nonsynonymous variants shared between diet groups

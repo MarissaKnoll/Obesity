@@ -208,9 +208,8 @@ nrow(vdf) - nrow(minorvdf)
 
 ```{r}
 freq_dist = ggplot() +
-  geom_histogram(aes(x = minorfreq, fill = diet), filter(vdf, inf_route == "Index"), binwidth = 0.025) +
-  geom_histogram(aes(x = majorfreq, fill = diet), filter(con_change, inf_route == "Index"), binwidth = 0.025) +
-  facet_grid(~diet) +
+  geom_density(aes(x = minorfreq, fill = diet), filter(vdf, inf_route == "Index"), binwidth = 0.025, alpha = 0.5) +
+  #geom_density(aes(x = majorfreq, fill = diet), filter(con_change, inf_route == "Index"), binwidth = 0.025, alpha = 0.5) +
   PlotTheme1 +
   DietcolScale_fill
 print(freq_dist)
@@ -266,19 +265,6 @@ seg_count_avg = group_by(seg_count, DPI, diet) %>%
 ```
 
 ```{r}
-snv_count_segment_plot = filter(seg_count, inf_route == "Index") %>% 
-  filter(DPI == "d02" | DPI == "d04" | DPI == "d06") %>%
-
-ggplot(. , aes(x = segment, y = snv_count, color = diet)) +
-  geom_boxplot(outlier.shape = NA) +
-  #geom_jitter(width = 0.2, aes(color = diet)) +
-  facet_grid(~DPI) +
-  PlotTheme1 +
-  DietcolScale
-print(snv_count_segment_plot)
-ggsave("snv_count_segment_plot.pdf", snv_count_segment_plot, path = savedir, width = 10, height = 5)
-
-
 gen_count_segment_plot = filter(gen_count, inf_route == "Index" | inf_route == "Control") %>% 
   filter(DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "Stock") %>%
 ggplot(. , aes(x = diet, y = snv_count)) +
@@ -289,8 +275,30 @@ ggplot(. , aes(x = diet, y = snv_count)) +
   PlotTheme1 +
   DietcolScale
 print(gen_count_segment_plot)
-ggsave("gen_count_segment_plot.pdf",gen_count_segment_plot,path=savedir, width = 10, height = 5)
+#ggsave("gen_count_segment_plot.pdf",gen_count_segment_plot,path=savedir, width = 10, height = 5)
 
+gen_count2 = gen_count %>% group_by(DPI,diet,inf_route) %>% mutate(avg_snv = mean(snv_count)) %>% ungroup() %>%
+  filter(inf_route == "Index" | inf_route == "Control") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "Stock") %>%
+ggplot(. , aes(x = factor(DPI, levels = c("Stock","d02","d04","d06")), color = diet)) +
+  #geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(y = snv_count), size = 1, width = 0.2, alpha = 0.5) +
+  geom_point(aes(y = avg_snv), size = 3) +
+  geom_line(aes(y = avg_snv, group = diet), size = 1.5) +
+  ylab("SNV richness") +
+  xlab("DPI") +
+  PlotTheme1 +
+  DietcolScale
+print(gen_count2)
+ggsave("gen_count2.pdf",gen_count2,path=savedir, width = 10, height = 7)
+
+counts = filter(gen_count,inf_route == "Index") %>% filter(DPI == "d02" | DPI == "d04" | DPI == "d06")
+aov.counts = aov(snv_count ~ diet, counts)
+summary(aov.counts)
+```
+
+By segment
+```{r}
 seg_count$diet_segment = paste0(seg_count$diet,"_",seg_count$segment)
 seg_count$diet_segment = factor(seg_count$diet_segment, 
                                 levels =c ('Control_H9N2_PB2','Lean_H9N2_PB2','Obese_H9N2_PB2',
@@ -302,7 +310,7 @@ seg_count$diet_segment = factor(seg_count$diet_segment,
                                            'Control_H9N2_MP','Lean_H9N2_MP','Obese_H9N2_MP',
                                            'Control_H9N2_NS','Lean_H9N2_NS','Obese_H9N2_NS'))
 
-seg_count_segment_plot = filter(seg_count, inf_route == "Index" | inf_route == "Control") %>% 
+snv_count_segment_plot = filter(seg_count, inf_route == "Index" | inf_route == "Control") %>% 
   filter(DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "Stock") %>%
 ggplot(. , aes(x = diet_segment, y = snv_count)) +
   geom_boxplot(outlier.shape = NA, position = "dodge", aes(color = diet)) +
@@ -311,18 +319,18 @@ ggplot(. , aes(x = diet_segment, y = snv_count)) +
   ylab("SNV richness per sample per segment") +
   PlotTheme1 +
   DietcolScale
-print(seg_count_segment_plot)
-ggsave("seg_count_segment_plot.pdf",seg_count_segment_plot,path=savedir, width = 10, height = 5)
+print(snv_count_segment_plot)
+ggsave("snv_count_segment_plot.pdf",snv_count_segment_plot,path=savedir, width = 10, height = 5)
 # 03/07 now includes consensus changes (using vdf instead of minorvdf)
 ```
 
 T test for segment comparisons
 ```{r}
-o = filter(seg_count, inf_route == "Index" & diet == "Obese" & DPI == "d06" & segment == "H9N2_NS")
-l = filter(seg_count, inf_route == "Index" & diet == "Lean" & DPI == "d06" & segment == "H9N2_NS")
+o = filter(seg_count, inf_route == "Index" & diet == "Obese" & DPI == "d06" & segment == "H9N2_PB2")
+l = filter(seg_count, inf_route == "Index" & diet == "Lean" & DPI == "d06" & segment == "H9N2_PB2")
 t.test(o$snv_count, l$snv_count)
 
-# d06: PB1, PA, NA are sig. diff
+# d06: NS are sig. diff
 # nothing else is sig. diff
 
 o_gen = filter(gen_count, inf_route == "Index" & diet == "Obese" & DPI == "d06")
@@ -373,6 +381,26 @@ print(shan_gen_plot)
 ggsave("shan_gen_plot.pdf", shan_gen_plot, path = savedir, width = 10, height = 5)
 
 # 03/07 now includes consensus changes (using vdf instead of minorvdf)
+
+shan_gen_plot2 = shan_g %>% group_by(DPI,diet,inf_route) %>% mutate(avg_shan = mean(normalized_shannon)) %>% ungroup() %>%
+  filter(inf_route == "Index" | inf_route == "Control") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "Stock") %>%
+ggplot(. , aes(x = factor(DPI, levels = c("Stock","d02","d04","d06")), color = diet)) +
+  #geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(y = normalized_shannon), size = 1, width = 0.2, alpha = 0.5) +
+  geom_point(size = 3, aes(y = avg_shan)) +
+  geom_line(aes(y = avg_shan, group = diet), linewidth = 1.5) +
+  #facet_grid(~DPI) +
+  ylab("Shannon entropy") +
+  xlab("DPI") +
+  PlotTheme1 +
+  DietcolScale
+print(shan_gen_plot2)
+ggsave("shan_gen_plot2.pdf", shan_gen_plot2, path = savedir, width = 10, height = 7)
+
+counts = filter(shan_g,inf_route == "Index") %>% filter(DPI == "d02" | DPI == "d04" | DPI == "d06")
+aov.counts = aov(normalized_shannon ~ diet, counts)
+summary(aov.counts)
 ```
 
 Test for significance
@@ -389,11 +417,17 @@ gen_count_titers = merge(gen_count, titers, by = c("ferretID","DPI"))
 
 Titer_SNV_Corr = ggplot(filter(gen_count_titers, log10_titer > 1), aes(x = log10_titer, y = snv_count)) +
   geom_point() +
-  geom_smooth(method = "glm") +
+  geom_smooth(method = "lm") +
   facet_grid(~inf_route) +
   PlotTheme1
 print(Titer_SNV_Corr)
 ggsave(Titer_SNV_Corr, file = "Titer_SNV_Corr.pdf", path = savedir)
+
+test_index = filter(gen_count_titers, inf_route == "Index")
+test_contact = filter(gen_count_titers, inf_route == "Contact")
+
+m = lm(test_contact$snv_count ~ test_contact$log10_titer)
+summary(m)
 ```
 
 dNdS analysis
@@ -507,26 +541,28 @@ lowest_timepoint = c("1408_d02","1414_d04","1416_d02","1789_d02","1800_d02","180
 data = data %>% 
   filter(sample %in% lowest_timepoint) %>% 
   group_by(sample)
-write.table(data, file = "stock_variants_index.csv", sep = ",", row.names = FALSE)
-# I'm dumb and could do this faster in excel than figuring out the code for it - go back and adjust
-df = read.csv("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/stock_variants_index_kl.csv")
-meta_noseg = select(meta, sample, ferretID, DPI, cohort, inf_route, diet, STRAIN, quality) %>% unique()
 
-df1 = group_by(df, sample) %>% 
+data_lost = filter(data, minorfreq.y == 0) %>% unique() %>% mutate(dynamics = "lost")
+data_kept = filter(data, minorfreq.y > 0) %>% unique() %>% mutate(dynamics = "kept")
+data = rbind(data_lost, data_kept) %>% unique() %>% arrange(sample)
+
+df = group_by(data, sample) %>% 
   count(dynamics) %>% 
-  filter(n != 18) %>% 
-  # one weird empty row with an n of 18 at the top, get rid of this
   pivot_wider(names_from = dynamics, values_from = n) %>%
   mutate(totalvar = kept +lost) %>%
   mutate(percent_lost = lost/totalvar)
 
-df1 = merge(df1, meta_noseg, by = c("sample"))
+meta_noseg = select(meta, sample, ferretID, DPI, cohort, inf_route, diet, STRAIN, quality) %>% unique()
+df1 = merge(df, meta_noseg, by = c("sample"))
 
 stock_lost = ggplot(df1, aes(x = diet, y = percent_lost)) +
   geom_boxplot() +
   geom_jitter(aes(color = diet), width = 0.2) +
   PlotTheme1 +
-  DietcolScale
+  DietcolScale +
+  ylim(0,1) +
+  ylab("Percentage of stock variants lost") +
+  xlab("Diet")
 print(stock_lost)
 ggsave(stock_lost, file = "stock_lost.pdf", path = savedir)
 
@@ -539,7 +575,7 @@ mean(df1$percent_lost)
 ```
 What happens to the variants in the stock in the index ferrets? (af)
 ```{r}
-kept = filter(df, dynamics == "kept")
+kept = filter(data, dynamics == "kept")
 keep_vars = unique(kept$var)
 
 vdf_stocks = filter(vdf, inf_route == "Index")
@@ -554,7 +590,6 @@ stockvar_index = ggplot(filter(vdf_stocks, inf_route == "Index"), aes(x = DPI, y
   DietcolScale
 print(stockvar_index)
 ggsave(stockvar_index, file = "stockvar_index.pdf",path = savedir, width = 10, height = 5)
-
 ```
 
 Loading in data after running bottleneck code
@@ -595,6 +630,7 @@ o_bottle = filter(stock_index, diet == "Obese" & smallest_timepoint == "yes")
 l_bottle = filter(stock_index, diet == "Lean" & smallest_timepoint == "yes")
 t.test(o_bottle$bottleneck_size, l_bottle$bottleneck_size)
 ```
+
 How many SNVs are transmitted?
 ```{r}
 index_contact_snv = filter(tran_df, minorfreq.y > 0) %>% 

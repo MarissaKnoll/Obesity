@@ -29,3 +29,9 @@ WEIGHTS = c('stock','lean','obese')
 names(weight_colors) = WEIGHTS
 weight_colFill <- scale_fill_manual(name = "weight", values = weight_colors)
 weight_colScale <- scale_colour_manual(name = "weight", values = weight_colors)
+
+diet = c("Obese","Lean","Control")
+dietColors = c("#FF9933","#66CCFF","#606060")
+names(dietColors) = diet
+DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
+DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)

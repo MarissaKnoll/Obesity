@@ -370,13 +370,13 @@ ggsave("L2_stock_index.pdf",L2_stock_index,path = savedir)
 
 ```{r}
 # T tests
-ob_d02 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
+ob = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
                   cohort.x == cohort.y &
-                  diet.y == "Obese" & DPI.y == "d02")
-ln_d02 = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
+                  diet.y == "Obese" & DPI.y == "d04")
+ln = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
                   cohort.x == cohort.y &
-                  diet.y == "Lean" & DPI.y == "d02")
-t.test(ln_d02$dist,ln_d02$dist)
+                  diet.y == "Obese" & DPI.y == "d06")
+t.test(ob$dist,ln$dist)
 ```
 
 ```{r}
