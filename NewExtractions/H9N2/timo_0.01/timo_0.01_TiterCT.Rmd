@@ -101,14 +101,17 @@ cov_avgtiter = merge(cov, cov_qual, by = c("name"))
 
 cov_avgtiter$totalcount[is.na(cov_avgtiter$totalcount)] = 0
 cov_avgt = group_by(cov_avgtiter,segment,ntpos,quality) %>%
-  mutate(avg_cov = mean(totalcount))
+  mutate(avg_cov = mean(totalcount)) %>%
+  mutate(log10_avg = log10(avg_cov))
 
-avg_titer_plot = ggplot(cov_avgt, aes(x = ntpos, y = avg_cov, color = quality)) +
+avg_titer_plot = ggplot(filter(cov_avgt, quality == "good"), aes(x = ntpos, y = log10_avg)) +
   geom_line() +
+  geom_hline(yintercept = log10(200), linetype = "dashed", color = "red") +
   facet_grid(~segment) +
+  ylim(0,4.5) +
   PlotTheme1
 print(avg_titer_plot)
-ggsave("avg_titer_plot.pdf",avg_titer_plot,path = savedir, width = 10, height = 5)
+ggsave("avg_titer_plot.pdf",avg_titer_plot,path = savedir, width = 20, height = 5)
 ```
 
 Merging coverage check info with the rest of the metadata
@@ -158,7 +161,7 @@ l_t = filter(m1,inf_route == "Index" & diet == "Lean" & segment == "H9N2_PB2" & 
 
 t.test(o_t$titer,l_t$titer)
 # Significant comparisons at p < 0.05 with only good quality samples: Index - d08, Contact - none
-# Significant comparisons at p < 0.05 with good and bad quality samples: Index - none, Contact - none
+# USE THIS ONE - Significant comparisons at p < 0.05 with good and bad quality samples: Index - none, Contact - none
 ```
 
 ```{r}
@@ -233,7 +236,7 @@ l_ct = filter(m2,inf_route == "Contact" & diet == "Lean"& segment == "H9N2_PB2" 
 # Ct value measured for the M gene, but all 8 have the same info from merging earlier
 
 t.test(o_ct$Ct_Mgene,l_ct$Ct_Mgene)
-# Significant comparisons at p < 0.05 with only good quality samples: Index - d04 Contact: none
+# USE THIS ONE - Significant comparisons at p < 0.05 with only good quality samples: Index - d04 Contact: none
 # Significant comparisons at p < 0.05 with good and bad quality samples: Index - d04 Contact: none
 ```
 
