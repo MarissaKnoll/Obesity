@@ -163,11 +163,13 @@ ggplot(nums, aes(x = n)) +
   PlotTheme1
 ```
 
+# Loading transmission information
 ```{r}
 transmission_info = "/Users/marissaknoll/Desktop/GitHub/Obesity/NewExtractions/H9N2/TransmissionPairs.csv"
 pairs = read.csv(transmission_info, header = T)
 ```
 
+# Plotting number of successful ferrets
 ```{r}
 fercount = select(vdf,sample,ferretID,DPI,diet,inf_route)
 fercount = fercount[!duplicated(fercount), ]  %>% 
@@ -188,6 +190,7 @@ print(p1)
 ggsave("ferrets_tileplot.pdf", p1, path = savedir,)
 ```
 
+# Pulling out consensus changes
 ```{r}
 con_change = filter(vdf, stocknt != major) %>%
   filter(major %in% ntlist)
@@ -198,6 +201,7 @@ consensus = unique(con_change$var)
 length(consensus)
 ```
 
+# Pulling out minor variants
 ```{r}
 vdf$var = paste0(vdf$ferretID,"_",vdf$segment,"_",vdf$major,"_",vdf$ntpos,"_",vdf$minor)
 
@@ -206,21 +210,79 @@ minorvdf = minorvdf[!duplicated(minorvdf), ]
 nrow(vdf) - nrow(minorvdf)
 ```
 
+# Distribution of variants by AF
 ```{r}
-freq_dist = ggplot() +
-  geom_density(aes(x = minorfreq, fill = diet), filter(vdf, inf_route == "Index"), binwidth = 0.025, alpha = 0.5) +
-  #geom_density(aes(x = majorfreq, fill = diet), filter(con_change, inf_route == "Index"), binwidth = 0.025, alpha = 0.5) +
-  PlotTheme1 +
-  DietcolScale_fill
-print(freq_dist)
-ggsave(freq_dist, file = "freq_dist.pdf", path = savedir)
+minorvdf_0.03 = filter(minorvdf, minorfreq < 0.03) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route) %>% 
+  tally() %>% 
+  mutate(cat = "1-2.99%")
 
-o_freq = filter(vdf, inf_route == "Index" & diet == "Obese")
-l_freq = filter(vdf, inf_route == "Index" & diet == "Lean")
-t.test(o_freq$minorfreq, l_freq$minorfreq)
+minorvdf_0.05 = filter(minorvdf, minorfreq < 0.05 & minorfreq >= 0.03) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route) %>% 
+  tally() %>% 
+  mutate(cat = "3-4.99%")
+
+minorvdf_0.1 = filter(minorvdf, minorfreq < 0.1 & minorfreq >= 0.05) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route) %>% 
+  tally() %>% 
+  mutate(cat = "5-9.99%")
+
+minorvdf_0.3 = filter(minorvdf, minorfreq < 0.3 & minorfreq >= 0.1) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route) %>% 
+  tally() %>% 
+  mutate(cat = "10-29.99%")
+
+minorvdf_0.5 = filter(minorvdf, minorfreq < 0.5 & minorfreq >= 0.3) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route) %>% 
+  tally() %>%
+  mutate(cat = "30-49.99%")
+
+minors = rbind(minorvdf_0.03,minorvdf_0.05, minorvdf_0.1, minorvdf_0.3, minorvdf_0.5)
+minors$cat = factor(minors$cat, levels = c("1-2.99%","3-4.99%","5-9.99%","10-29.99%","30-49.99%"))
 ```
 
-Tallying SNVs
+```{r}
+con_change_1.0 = filter(con_change, majorfreq < 1.0 & majorfreq >= 0.5) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route) %>% 
+  tally() %>%
+  mutate(cat = "50-99.99%")
+
+majors = con_change_1.0
+majors$cat = factor(majors$cat, levels = c("50-99.99%"))
+```
+
+```{r}
+freq_dist = ggplot() +
+  geom_boxplot(aes(x = cat, y = n, color = diet), filter(minors, inf_route == "Index"), outlier.shape = NA) +
+  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), filter(minors, inf_route == "Index"), width = 0.2) +
+  geom_boxplot(aes(x = cat, y = n, color = diet), filter(majors, inf_route == "Index"), outlier.shape = NA) +
+  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), filter(majors, inf_route == "Index"), width = 0.2) +
+  PlotTheme1 +
+  DietcolScale
+print(freq_dist)
+ggsave(freq_dist, file = "freq_dist.pdf", path = savedir, width = 10, height = 7)
+```
+# Testing for significance
+```{r}
+o = filter(minors, inf_route == "Index" & cat == "50-99.99%" & diet == "Obese")
+l = filter(minors, inf_route == "Index" & cat == "50-99.99%" & diet == "Lean")
+t.test(o$n,l$n)
+
+# Significance: none
+```
+
+```{r}
+# Is there a bias in terms of dpi in above plot?
+
+```
+
+# Tallying SNVs
 ```{r}
 # can make these groupings whatever you want
 
