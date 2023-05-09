@@ -317,8 +317,8 @@ gen_count$snv_count[is.na(gen_count$snv_count)] = 0
 gen_count = filter(gen_count, !is.na(ferretID))
 ```
 
-```{r}
 # Average Number of Variants per Sample
+```{r}
 gen_count_avg = group_by(gen_count, DPI, diet, inf_route) %>%
   mutate(avgSNV = mean(snv_count), sdSNV = sd(snv_count))
 
@@ -386,7 +386,7 @@ ggsave("snv_count_segment_plot.pdf",snv_count_segment_plot,path=savedir, width =
 # 03/07 now includes consensus changes (using vdf instead of minorvdf)
 ```
 
-T test for segment comparisons
+# T test for segment comparisons
 ```{r}
 o = filter(seg_count, inf_route == "Index" & diet == "Obese" & DPI == "d06" & segment == "H9N2_PB2")
 l = filter(seg_count, inf_route == "Index" & diet == "Lean" & DPI == "d06" & segment == "H9N2_PB2")
@@ -400,7 +400,7 @@ l_gen = filter(gen_count, inf_route == "Index" & diet == "Lean" & DPI == "d06")
 t.test(o_gen$snv_count, l_gen$snv_count)
 ```
 
-Calculating Shannon Entropy
+# Calculating Shannon Entropy
 ```{r}
 vdf = ShannonPos(vdf)
 vdf$SegmentSize = as.numeric(vdf$SegmentSize)
@@ -416,8 +416,8 @@ vdf$normalized_shannon = (vdf$shannon/GenomeSize)
 # normalized_shannon = shannon divided by genome size (can make per kb by dividing by 1000) for each sample
 ```
 
-```{r}
 # Average Shannon Entropy per Site per Sample (using normalized_shannon)
+```{r}
 shan_g = ungroup(vdf) %>%
   select(ferretID, DPI, diet, inf_route, cohort,normalized_shannon) %>%
   unique()
@@ -465,17 +465,17 @@ aov.counts = aov(normalized_shannon ~ diet, counts)
 summary(aov.counts)
 ```
 
-Test for significance
+# Test for significance
 ```{r}
 o = filter(shan_g, DPI == "Stock" & diet == "Control")
 l = filter(shan_g, DPI == "d06" & diet == "Lean")
 t.test(o$normalized_shannon,l$normalized_shannon)
 ```
 
-Does higher titer correlate with more diversity?
+# Does higher titer correlate with more diversity?
 ```{r}
 titers = select(meta, sample, ferretID, DPI, titer, log10_titer)
-gen_count_titers = merge(gen_count, titers, by = c("ferretID","DPI"))
+gen_count_titers = merge(gen_count, titers, by = c("ferretID","DPI")) %>% unique()
 
 Titer_SNV_Corr = ggplot(filter(gen_count_titers, log10_titer > 1), aes(x = log10_titer, y = snv_count)) +
   geom_point() +
@@ -492,7 +492,30 @@ m = lm(test_contact$snv_count ~ test_contact$log10_titer)
 summary(m)
 ```
 
-dNdS analysis
+# Do higher Ct values correlate with more diversity?
+```{r}
+ct_values = select(meta, sample, ferretID, DPI, Ct_Mgene, log10_titer)
+gen_count_ct = merge(gen_count, ct_values, by = c("ferretID","DPI")) %>%
+  filter(!(is.na(Ct_Mgene))) %>%
+  filter(inf_route == "Index" | inf_route == "Contact") %>% 
+  unique()
+
+Ct_SNV_Corr = ggplot(gen_count_ct, aes(x = Ct_Mgene, y = snv_count)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_grid(~inf_route) +
+  PlotTheme1
+print(Ct_SNV_Corr)
+ggsave(Ct_SNV_Corr, file = "Ct_SNV_Corr.pdf", path = savedir, width = 10, height = 5)
+
+test_index = filter(gen_count_ct, inf_route == "Index")
+test_contact = filter(gen_count_ct, inf_route == "Contact")
+
+m = lm(test_contact$snv_count ~ test_contact$Ct_Mgene)
+summary(m)
+```
+
+# dNdS analysis
 ```{r}
 # by ferret
 #dNdS_ferret = minorvdf %>% 
@@ -517,7 +540,7 @@ dNdS analysis
 #ggsave("dNdS_ferret.png", dNdS_ferret_plot, path = savedir, width = 10, height = 5)
 ```
 
-Setting up AF dataframes for bottleneck calculation: Stock to index ferrets
+# Setting up AF dataframes for bottleneck calculation: Stock to index ferrets
 ```{r}
 af_df = select(vdf, sample, segment, ntpos, stocknt, major, minor,minorfreq, cohort, inf_route, ferretID, diet, DPI) %>%
   ungroup() %>%
@@ -552,7 +575,7 @@ for(i in samples){
 }
 ```
 
-Setting up AF dataframes for bottleneck calculation: Index to contact ferrets
+# Setting up AF dataframes for bottleneck calculation: Index to contact ferrets
 ```{r}
 af_df = select(vdf, sample, segment, ntpos, stocknt, major, minor,minorfreq, cohort, inf_route, ferretID, diet, DPI) %>%
   ungroup() %>%
@@ -595,7 +618,7 @@ for(i in samples){
 
 ```
 
-What happens to the stock variants in the index(af)?
+# What happens to the stock variants in the index(af)?
 ```{r}
 lowest_timepoint = c("1408_d02","1414_d04","1416_d02","1789_d02","1800_d02","1801_d02","1910_d02","1912_d02",
                      "1968_d02","1970_d02","1972_d02","1973_d02","1974_d02","1975_d04","1977_d02","1984_d02",
@@ -635,7 +658,8 @@ mean(o$percent_lost)
 mean(l$percent_lost)
 mean(df1$percent_lost)
 ```
-What happens to the variants in the stock in the index ferrets? (af)
+
+# What happens to the variants in the stock in the index ferrets? (af)
 ```{r}
 kept = filter(data, dynamics == "kept")
 keep_vars = unique(kept$var)
@@ -654,7 +678,7 @@ print(stockvar_index)
 ggsave(stockvar_index, file = "stockvar_index.pdf",path = savedir, width = 10, height = 5)
 ```
 
-Loading in data after running bottleneck code
+# Loading in data after running bottleneck code
 ```{r}
 stock_index = read.csv("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/freqfiles/stock/all_stock_bottlenecks.csv")
 stock_index = merge(stock_index, meta_noseg, by = c("sample","ferretID","DPI"))
@@ -693,7 +717,7 @@ l_bottle = filter(stock_index, diet == "Lean" & smallest_timepoint == "yes")
 t.test(o_bottle$bottleneck_size, l_bottle$bottleneck_size)
 ```
 
-How many SNVs are transmitted?
+# How many SNVs are transmitted?
 ```{r}
 index_contact_snv = filter(tran_df, minorfreq.y > 0) %>% 
   mutate(transmitted = "yes")
@@ -734,7 +758,7 @@ print(transmitted_snvs_all)
 ggsave(transmitted_snvs_all, file = "transmitted_snvs_all.pdf", path = savedir, height = 5, width = 5)
 ```
 
-Turnover rate
+# Turnover rate
 ```{r}
 multiday = ungroup(minorvdf) %>%
   filter(inf_route == "Index") %>%
