@@ -141,7 +141,7 @@ m1 = filter(meta, resequenced == "yes") %>%
 avg_titer = ggplot(filter(m1,inf_route == "Index" | inf_route == "Contact"), 
               aes(x = DPI, color = diet)) +
   geom_point(size = 5, aes(y = avg_log_titer)) +
-  geom_jitter(size = 3, alpha = 0.2, aes(y = log10_titer)) +
+  geom_jitter(size = 3, alpha = 0.4, aes(y = log10_titer)) +
   #geom_errorbar(aes(ymin = avg_log_titer - sd_log_titer, ymax = avg_log_titer + sd_log_titer)) +
   geom_line(aes(y = avg_log_titer, group = diet), linewidth = 2) +
   facet_grid(~inf_route) +
@@ -150,13 +150,13 @@ avg_titer = ggplot(filter(m1,inf_route == "Index" | inf_route == "Contact"),
   PlotTheme1 +
   DietcolScale
 print(avg_titer)
-#ggsave("avg_titer.pdf", avg_titer, path = savedir, width = 10, height = 5)
+ggsave("avg_titer.pdf", avg_titer, path = savedir, width = 10, height = 5)
 ```
 # Test for significance
 ```{r}
-o_t = filter(m1,inf_route == "Index" & diet == "Obese" & segment == "H9N2_PB2" & DPI == "d10") 
+o_t = filter(m1,inf_route == "Contact" & diet == "Obese" & DPI == "d12") 
 # All 8 segments have the same info, just picked first segment
-l_t = filter(m1,inf_route == "Index" & diet == "Lean" & segment == "H9N2_PB2" & DPI == "d10") 
+l_t = filter(m1,inf_route == "Contact" & diet == "Lean" & DPI == "d12") 
 # All 8 segments have the same info, just picked first segment
 
 t.test(o_t$titer,l_t$titer)
@@ -222,7 +222,8 @@ avg_ct_plot = ggplot(filter(m2,inf_route == "Index" | inf_route == "Contact"),
   facet_grid(~inf_route) +
   #ylim(0,6) + 
   ylab("Ct Value") +
-  PlotTheme1 +
+  PlotTheme1 + 
+  scale_y_reverse() +
   DietcolScale
 print(avg_ct_plot)
 ggsave("avg_ct_plot.pdf", avg_ct_plot, path = savedir, width = 10, height = 5)

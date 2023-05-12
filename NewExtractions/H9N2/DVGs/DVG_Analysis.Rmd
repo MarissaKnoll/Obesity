@@ -7,13 +7,10 @@ Kate's DVG code
 
 ```{r}
 message("Loading packages")
-library('ggplot2')
-library('readr')
-library('reshape2')
-library('ggpubr')
 library('plyr')
 library('tidyverse')
-library('dplyr')
+library('reshape2')
+library('ggpubr')
 library('glue')
 library('ggVennDiagram')
 ```
@@ -380,17 +377,17 @@ reps_df$ave_dvg_freq = (reps_df$DVG_freq.x + reps_df$DVG_freq.y)/2
 
 ```{r}
 reps_df = reps_df %>%
-  arrange(ferret_day, ave_dvg_freq) %>% 
-  group_by(ferret_day) %>% 
-  mutate(order_number = row_number()) %>% 
+  dplyr::arrange(ferret_day, ave_dvg_freq) %>% 
+  dplyr::group_by(ferret_day) %>% 
+  dplyr::mutate(order_number = row_number()) %>% 
   ungroup() %>%
   unique()
 ```
 
 ```{r}
 reps_df %>% 
-    group_by(NewGap, segment, inf_route, diet) %>%
-    mutate(mean_order = mean(order_number),
+    dplyr::group_by(NewGap, segment, inf_route, diet) %>%
+    dplyr::mutate(mean_order = mean(order_number),
           sample_count = n(),
           min_order = min(order_number),
           max_order = max(order_number),
@@ -581,10 +578,8 @@ temp$H9N2_NS = 0
 
 temp = pivot_longer(temp, cols = all_of(SEGMENTS), names_to = 'segment') %>% select(-value)
 
-seg_rich = merge(seg_rich, temp, by = c('ferret_id', 'dpi', 'inf_route', 'diet', 
-           'pair_numbers', 'pair_diets', 'type_day', 'segment'), all = TRUE) 
-
-#seg_rich$seg_deletion_richness[is.na(seg_rich$seg_deletion_richness)] = 0
+seg_rich = merge(seg_rich, temp, by = c('ferret_id', 'dpi', 'inf_route', 'diet', 'pair_numbers', 'pair_diets', 'type_day', 'segment'), all = TRUE) 
+seg_rich$seg_deletion_richness[is.na(seg_rich$seg_deletion_richness)] = 0
 
 seg_rich$segment = factor(seg_rich$segment, levels = SEGMENTS)
 head(seg_rich)
@@ -633,7 +628,7 @@ seg_rich %>% filter(segment %in% SEGMENTS) %>%
     facet_grid(.~inf_route)
 
 
-p6 = seg_rich %>% filter(segment %in% SEGMENTS & dpi %in% c('d02','d04','d06','stock')) %>%
+p6 = seg_rich %>% filter(segment %in% SEGMENTS & dpi %in% c('d02','d04','d06')) %>%
     filter(inf_route == 'Index' | inf_route == "Control") %>%
     ggplot(., aes(x=segment, y = seg_deletion_richness, group = seg_weight, color = diet)) + 
     geom_boxplot(outlier.shape = NA) + 
@@ -653,45 +648,45 @@ ggsave(p6,
        filename = glue("{wkdir}/DVG_figures/segment.index.richness.png"),
        width =8,
        height = 4, limitsize=FALSE) #, useDingbats = FALSE)
-
-
 ```
+
+# IGNORE THIS SECTION - what it looked like before ferret diets were corrected
 ```{r}
 # 1973, 1977, and 1986 are listed as obese when they are actually lean, and 1984 is listed as lean when it is actually obese
 
-seg_rich %>% 
+#seg_rich %>% 
     #filter(!inf_route %in% c('stock','lean','obese')) %>% 
-    drop_na(inf_route) %>%
-    filter(ferret_id == 1408)
+#    drop_na(inf_route) %>%
+#    filter(ferret_id == 1408)
 
-old_obese = filter(seg_rich, ferret_id %in% c(1973, 1977, 1986)) %>% unique()
-old_obese$diet = "Obese"
-old_lean = filter(seg_rich,ferret_id == 1984) %>% unique()
-old_lean$diet = "Lean"
-old_same = filter(seg_rich, ferret_id != c(1973, 1977, 1986, 1984))
+#old_obese = filter(seg_rich, ferret_id %in% c(1973, 1977, 1986)) %>% unique()
+#old_obese$diet = "Obese"
+#old_lean = filter(seg_rich,ferret_id == 1984) %>% unique()
+#old_lean$diet = "Lean"
+#old_same = filter(seg_rich, ferret_id != c(1973, 1977, 1986, 1984))
 
-deleteit = rbind(old_obese,old_lean,old_same)
+#deleteit = rbind(old_obese,old_lean,old_same)
 
-deleteit %>% filter(!ferret_id %in% c(1973, 1977,1986, 1984) &
-                      segment %in% SEGMENTS & dpi %in% c('d02','d04','d06','stock')) %>%
-    drop_na(inf_route) %>%
-    filter(inf_route == 'Index' | inf_route == "Control") %>%
-    ggplot(., aes(x=segment, y = seg_deletion_richness, group = seg_weight, color = diet)) + 
-    geom_boxplot(outlier.shape = NA) + 
-    labs(x='segment',y='deletion richness') + 
-    PlotTheme1 +
-    DietcolScale +
-    facet_grid(.~dpi)
+#deleteit %>% filter(!ferret_id %in% c(1973, 1977,1986, 1984) &
+#                      segment %in% SEGMENTS & dpi %in% c('d02','d04','d06','stock')) %>%
+#    drop_na(inf_route) %>%
+#    filter(inf_route == 'Index' | inf_route == "Control") %>%
+#    ggplot(., aes(x=segment, y = seg_deletion_richness, group = seg_weight, color = diet)) + 
+#    geom_boxplot(outlier.shape = NA) + 
+#    labs(x='segment',y='deletion richness') + 
+#    PlotTheme1 +
+#    DietcolScale +
+#    facet_grid(.~dpi)
 
 #seg_rich %>% filter(ferret_id %in% c(1973, 1977,1986, 1984) & dpi == 'd06') %>% 
 #  select(ferret_id, segment, dpi, seg_deletion_richness) 
-
 ```
 Test for significance
 ```{r}
-o = filter(seg_rich, inf_route == "Index" & dpi == "d06" & segment == "H9N2_PB2" & diet == "Obese")
-l = filter(seg_rich, inf_route == "Index" & dpi == "d06" & segment == "H9N2_PB2" & diet == "Lean")
+o = filter(seg_rich, inf_route == "Index" & dpi == "d06" & segment == "H9N2_NS" & diet == "Obese")
+l = filter(seg_rich, inf_route == "Index" & dpi == "d06" & segment == "H9N2_NS" & diet == "Lean")
 t.test(o$seg_deletion_richness,l$seg_deletion_richness)
+# Significance: none
 ```
 
 ```{r}
@@ -797,13 +792,13 @@ StockDVGs = ggVennDiagram(stock_dvg)
 print(StockDVGs)
 ggsave(StockDVGs, file = "StockDVGs.pdf", path = saveitdir)
 
-ShockSharedDVGs = ggplot(stock_shared, aes(x = dpi, y = DVG)) +
-  geom_point() +
-  geom_line(aes(group = DVG)) +
-  facet_grid(~segment) +
-  PlotTheme1
-print(ShockSharedDVGs)
-ggsave(ShockSharedDVGs, file = "ShockSharedDVGs.pdf", path = saveitdir)
+#ShockSharedDVGs = ggplot(stock_shared, aes(x = dpi, y = DVG)) +
+#  geom_point() +
+#  geom_line(aes(group = DVG)) +
+#  facet_grid(~segment) +
+#  PlotTheme1
+#print(ShockSharedDVGs)
+#ggsave(ShockSharedDVGs, file = "ShockSharedDVGs.pdf", path = saveitdir)
 ```
 Are there diet-specific DVGs in index ferrets?
 ```{r}
@@ -867,32 +862,42 @@ lean_DVG_sizes = lean %>% ungroup %>% select(DVG,DVG_group, DeletionSize, NewSta
   arrange(desc(DeletionSize)) %>%
   mutate(name = factor(DVG, levels = unique(DVG)))
 
-ggplot(lean_DVG_sizes, aes(x = DeletionSize, y = name)) +
-  geom_col() +
+#ggplot(lean_DVG_sizes, aes(x = DeletionSize, y = name)) +
+#  geom_col() +
   #facet_grid(segment~strain) +
-  PlotTheme1
+#  PlotTheme1
 #ggsave("test_dvg.pdf", a, path = saveitdir, height = 30, width = 5)
 
-lean_DVG_sizes_plot = ggplot(lean_DVG_sizes, aes(x = NewStart, xend = NewEnd, y = name, yend = name, color = diet)) +
-  geom_segment() +
+#lean_DVG_sizes_plot = ggplot(lean_DVG_sizes, aes(x = NewStart, xend = NewEnd, y = name, yend = name, color = diet)) +
+#  geom_segment() +
   #facet_grid(segment~strain) +
-  PlotTheme1  +
-  DietcolScale
-print(lean_DVG_sizes_plot)
-ggsave("lean_DVG_sizes_plot.pdf",lean_DVG_sizes_plot, path = saveitdir, height = 10, width = 10)
+#  PlotTheme1  +
+#  DietcolScale
+#print(lean_DVG_sizes_plot)
+#ggsave("lean_DVG_sizes_plot.pdf",lean_DVG_sizes_plot, path = saveitdir, height = 10, width = 10)
 
 lean_DVG_size_seg = lean %>% ungroup %>% select(DVG,DVG_group, DeletionSize, NewStart, NewEnd, segment,diet) %>% 
   unique() %>% 
   arrange(desc(segment),desc(DeletionSize)) %>%
   mutate(name = factor(DVG, levels = unique(DVG)))
 
-lean_DVG_size_seg_plot = ggplot(lean_DVG_size_seg, aes(x = NewStart, xend = NewEnd, y = name, yend = name, color = diet)) +
+lean_DVG_size_seg_plot = ggplot(filter(lean_DVG_size_seg, DeletionSize > 400), 
+                                aes(x = NewStart, xend = NewEnd, y = name, yend = name, color = diet)) +
   geom_segment() +
   facet_grid(~segment) +
   PlotTheme1 +
   DietcolScale
 print(lean_DVG_size_seg_plot)
 ggsave("lean_DVG_size_seg_plot.pdf",lean_DVG_size_seg_plot,path = saveitdir, height = 10, width = 10)
+
+lean_indels_size_seg_plot = ggplot(filter(lean_DVG_size_seg, DeletionSize < 400), 
+                                aes(x = NewStart, xend = NewEnd, y = name, yend = name, color = diet)) +
+  geom_segment() +
+  facet_grid(~segment) +
+  PlotTheme1 +
+  DietcolScale
+print(lean_indels_size_seg_plot)
+ggsave("lean_indels_size_seg_plot.pdf",lean_indels_size_seg_plot,path = saveitdir, height = 10, width = 10)
 ```
 
 ```{r}
@@ -901,26 +906,27 @@ obese_DVG_sizes = obese %>% ungroup %>% select(DVG,DVG_group, DeletionSize, NewS
   arrange(desc(DeletionSize)) %>%
   mutate(name = factor(DVG, levels = unique(DVG)))
 
-ggplot(obese_DVG_sizes, aes(x = DeletionSize, y = name)) +
-  geom_col() +
+#ggplot(obese_DVG_sizes, aes(x = DeletionSize, y = name)) +
+#  geom_col() +
   #facet_grid(segment~strain) +
-  PlotTheme1 
+#  PlotTheme1 
 #ggsave("test_dvg.pdf", a, path = saveitdir, height = 30, width = 5)
 
-obese_DVG_sizes_plot = ggplot(obese_DVG_sizes, aes(x = NewStart, xend = NewEnd, y = name, yend = name, color = diet)) +
-  geom_segment() +
+#obese_DVG_sizes_plot = ggplot(obese_DVG_sizes, aes(x = NewStart, xend = NewEnd, y = name, yend = name, color = diet)) +
+#  geom_segment() +
   #facet_grid(segment~strain) +
-  PlotTheme1 +
-  DietcolScale
-print(obese_DVG_sizes_plot)
-ggsave("obese_DVG_sizes_plot.pdf",obese_DVG_sizes_plot, path = saveitdir, height = 10, width = 10)
+#  PlotTheme1 +
+#  DietcolScale
+#print(obese_DVG_sizes_plot)
+#ggsave("obese_DVG_sizes_plot.pdf",obese_DVG_sizes_plot, path = saveitdir, height = 10, width = 10)
 
 obese_DVG_size_seg = obese %>% ungroup %>% select(DVG,DVG_group, DeletionSize, NewStart, NewEnd, segment,diet) %>% 
   unique() %>% 
   arrange(desc(segment),desc(DeletionSize)) %>%
   mutate(name = factor(DVG, levels = unique(DVG)))
 
-obese_DVG_size_seg_plot = ggplot(obese_DVG_size_seg, aes(x = NewStart, xend = NewEnd, y = name, yend = name, color = diet)) +
+obese_DVG_size_seg_plot = ggplot(filter(obese_DVG_size_seg, DeletionSize > 400), 
+                                 aes(x = NewStart, xend = NewEnd, y = name, yend = name, color = diet)) +
   geom_segment() +
   facet_grid(~segment) +
   PlotTheme1  +
@@ -928,6 +934,14 @@ obese_DVG_size_seg_plot = ggplot(obese_DVG_size_seg, aes(x = NewStart, xend = Ne
 print(obese_DVG_size_seg_plot)
 ggsave("obese_DVG_size_seg_plot.pdf",obese_DVG_size_seg_plot, path = saveitdir, height = 10, width = 10)
 
+obese_indels_size_seg_plot = ggplot(filter(obese_DVG_size_seg, DeletionSize < 400), 
+                                 aes(x = NewStart, xend = NewEnd, y = name, yend = name, color = diet)) +
+  geom_segment() +
+  facet_grid(~segment) +
+  PlotTheme1  +
+  DietcolScale
+print(obese_indels_size_seg_plot)
+ggsave("obese_indels_size_seg_plot.pdf",obese_indels_size_seg_plot, path = saveitdir, height = 10, width = 10)
 ```
 
 Are DVGs transmitted?
@@ -958,8 +972,8 @@ for(i in samples){
     s = unique(d$ferret_day)
     print(s)
   
-    comp = merge(n, d, by = c("pair_diets","pair_numbers","pair","segment","seg_dvg","DVG_group","GroupBoundaries"), all.x = TRUE) %>%
-      count(pair_numbers,ferret_day.x, ferret_day.y)
+    comp = merge(n, d, by = c("pair_diets","pair_numbers","segment","seg_dvg","DVG_group","GroupBoundaries"), all.x = TRUE) %>%
+      dplyr::count(pair_numbers,ferret_day.x, ferret_day.y)
     colnames(comp) = c("pair_numbers","Index","Contact","count")
      
     dvg_transmitted = rbind(dvg_transmitted, comp)
@@ -973,7 +987,7 @@ for(i in samples){
 ```
 
 ```{r}
- contact_dvgs = filter(dvg_df, inf_route == "Index") %>% count(ferret_id,dpi,diet) %>%
+ contact_dvgs = filter(dvg_df, inf_route == "Index") %>% dplyr::count(ferret_id,dpi,diet) %>%
   ggplot(., aes(x = dpi, y = n, color = diet)) +
   geom_point() +
   geom_line(aes(group = ferret_id)) +
