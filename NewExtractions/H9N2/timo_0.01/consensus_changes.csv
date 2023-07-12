@@ -2,6 +2,7 @@
 "1409","H9N2_NP","nonsyn","C326T","T109I",0.861121751213824,"Obese","Contact"
 "1409","H9N2_PB1","nonsyn","C1882A","L628M",0.915621115636615,"Obese","Contact"
 "1794","H9N2_HA","nonsyn","C284A","S95Y",0.524785218138538,"Obese","Contact"
+"1794","H9N2_HA","nonsyn","C284A","S95Y",0.685797866694969,"Obese","Contact"
 "1797","H9N2_PB2","nonsyn","C334T","P112S",0.987985265882158,"Lean","Contact"
 "1980","H9N2_PB1","nonsyn","T965C","I322T",0.750649217105171,"Obese","Contact"
 "1986","H9N2_NS","nonsyn","C652T","Q218*",0.830658368718842,"Lean","Contact"
@@ -12,3 +13,4 @@
 "2232","H9N2_PB2","syn","C639A","R213R",0.606833396388026,"Obese","Contact"
 "2232","H9N2_PB1","nonsyn","C1882A","L628M",0.850445335131507,"Obese","Contact"
 "2254","H9N2_PA","syn","C27T","F9F",0.506444814509393,"Lean","Index"
+"2254","H9N2_PA","syn","C27T","F9F",0.540862562095439,"Lean","Index"

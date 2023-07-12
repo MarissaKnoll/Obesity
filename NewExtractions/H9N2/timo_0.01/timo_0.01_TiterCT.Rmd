@@ -17,7 +17,7 @@ savedir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/Output_Figures
 source("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/FD_functions.R")
 ```
 
-Specifying thresholds and plotting variables
+# Specifying thresholds and plotting variables
 ```{r}
 cov_cut = 200
 freq_cut = 0.01
@@ -154,9 +154,9 @@ ggsave("avg_titer.pdf", avg_titer, path = savedir, width = 10, height = 5)
 ```
 # Test for significance
 ```{r}
-o_t = filter(m1,inf_route == "Contact" & diet == "Obese" & DPI == "d12") 
+o_t = filter(m1,inf_route == "Contact" & diet == "Obese" & DPI == "d10") 
 # All 8 segments have the same info, just picked first segment
-l_t = filter(m1,inf_route == "Contact" & diet == "Lean" & DPI == "d12") 
+l_t = filter(m1,inf_route == "Contact" & diet == "Lean" & DPI == "d10") 
 # All 8 segments have the same info, just picked first segment
 
 t.test(o_t$titer,l_t$titer)

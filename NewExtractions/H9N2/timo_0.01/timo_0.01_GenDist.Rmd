@@ -91,11 +91,13 @@ nrow(vdf)
 
 Filtering variant df by timo binocheck
 ```{r}
-vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
-vdf_bino = filter(vdf, binocheck != "False")
-vdf_bino = vdf_bino[!duplicated(vdf_bino), ] %>% droplevels()
-nrow(vdf_bino)
-# this really gets rid of a lot of variants (~1000)
+#vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
+#vdf = filter(vdf, binocheck != "False")
+#vdf = vdf[!duplicated(vdf), ] %>% droplevels()
+#nrow(vdf)
+
+# binocheck is highly dependent on the allele frequency threshold used and also relatively conservative
+# as a result, ignore this in favor of found in both replicates across ferrets and cohorts - this is more indicative of a real variant than binocheck
 ```
 
 Filtering variant df with frequency cutoffs
@@ -372,7 +374,7 @@ ggsave("L2_stock_index.pdf",L2_stock_index,path = savedir)
 # T tests
 ob = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
                   cohort.x == cohort.y &
-                  diet.y == "Obese" & DPI.y == "d04")
+                  diet.y == "Lean" & DPI.y == "d06")
 ln = filter(man_long, inf_route.x == "Control" & inf_route.y == "Index" &
                   cohort.x == cohort.y &
                   diet.y == "Obese" & DPI.y == "d06")

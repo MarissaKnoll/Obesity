@@ -39,7 +39,7 @@ meta$log10_titer = as.numeric(meta$log10_titer)
 meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
 ```
 
-Specifying thresholds and plotting variables
+# Specifying thresholds and plotting variables
 ```{r}
 cov_cut = 200
 freq_cut = 0.01
@@ -49,7 +49,7 @@ ntlist = c("A","C","G","T")
 SEGMENTS = c('H9N2_PB2','H9N2_PB1','H9N2_PA','H9N2_HA','H9N2_NP','H9N2_NA','H9N2_MP','H9N2_NS')
 ```
 
-Loading in variant files
+# Loading in variant files
 ```{r}
 varfile = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/varfiles/H9N2.VariantsOnly.0.01.200.csv"
 
@@ -58,7 +58,7 @@ vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
 vars$name = vars$sample
 ```
 
-Rearranging variant dataframe
+# Rearranging variant dataframe
 ```{r}
 vdf = ArrangeVarWRep(vars)
 # already have replicate data in the varfiles from running CompareReps.v2.py script
@@ -66,30 +66,33 @@ vdf = vdf[!duplicated(vdf), ] %>% droplevels()
 nrow(vdf)
 ```
 
-Filtering variant df by timo binocheck
-```{r}
-vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
-vdf_bino = filter(vdf, binocheck != "False")
-vdf_bino = vdf_bino[!duplicated(vdf_bino), ] %>% droplevels()
-nrow(vdf_bino)
-```
-
-Filtering variant df with frequency cutoffs
+# Filtering variant df with frequency cutoffs
 ```{r}
 vdf = filter(vdf, minorfreq1 >= freq_cut & 
                minorfreq2 >= freq_cut & 
                minor %in% ntlist &
                major %in% ntlist) %>% 
             droplevels()
+nrow(vdf)
 # based on MAF study, reps and 0.01% cutoff was best combo
-#filter each replicate separately rather than using the average
+# filter each replicate separately rather than using the average
 
 vdf = vdf[!duplicated(vdf), ] %>% droplevels()
 nrow(vdf)
 # does not eliminate any variants here
 ```
 
-Loading in coverage file & segment size information
+# Filtering by timo binocheck
+```{r}
+#vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
+#vdf = filter(vdf, binocheck != "False")
+#nrow(vdf)
+
+# binocheck is highly dependent on the allele frequency threshold used and also relatively conservative
+# as a result, ignore this in favor of found in both replicates across ferrets and cohorts - this is more indicative of a real variant than binocheck
+```
+
+#Loading in coverage file & segment size information
 ```{r}
 cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
 
@@ -100,14 +103,14 @@ GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
 cov$segment = factor(cov$segment, levels = SEGMENTS)
 ```
 
-Checking if data passes thresholds
+#Checking if data passes thresholds
 ```{r}
 cov_check = CoverageAcross(cov,cov_cut,40,sizes, wkdir)
 cov_qual = select(cov_check, name, quality)
 cov_avgtiter = merge(cov, cov_qual, by = c("name"))
 ```
 
-Merging coverage check info with the rest of the metadata
+#Merging coverage check info with the rest of the metadata
 ```{r}
 meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"), all.y = TRUE)
 
@@ -115,7 +118,7 @@ nrow(meta)
 count(meta,quality)
 ```
 
-Adding metadata
+# Adding metadata
 ```{r}
 vdf = merge(vdf,meta, by = c("sample","segment"))
 vdf = vdf[!duplicated(vdf), ] %>% droplevels()
@@ -133,7 +136,7 @@ vdf = vdf[!duplicated(vdf), ] %>% droplevels()
 good_names = c(levels(factor(vdf$sample)))
 ```
 
-Consensus changes
+# Consensus changes
 ```{r}
 con_change = filter(vdf, stocknt != major) %>%
   filter(major %in% ntlist)
@@ -141,37 +144,89 @@ con_change = con_change[!duplicated(con_change), ]
 nrow(con_change)
 
 con_change$maj = paste0(con_change$segment,"_",con_change$stock,con_change$ntpos)
-con_change$ferretID_maj = paste0(con_change$ferretID,"_",con_change$maj)
-con_change = con_change[!duplicated(con_change$ferretID_maj),] 
+con_change$aa_change = paste0(con_change$stockaa,con_change$aapos,con_change$majoraa)
+con_change$nt_change = paste0(con_change$stocknt,con_change$ntpos,con_change$major)
+
+con_change = filter(con_change, !(ferretID == 2232 & inf_route == "Index"))
+# since 2232 is both a contact and then an index to another contact, remove the second instance so as not to double count
+# aka only consider 2232 as a contact
+
+# TOOK THIS OUT 5/29
+#con_change$ferretID_maj = paste0(con_change$ferretID,"_",con_change$maj)
+#con_change = con_change[!duplicated(con_change$ferretID_maj),] 
 # not counting same consensus change but just on different days - basically counting unique consensus changes
-
-nrow(con_change)
-cons = count(con_change,ferretID,diet,inf_route)
-
-select(con_change, stocknt, major, minor)
-# in all cases, the stocknt is the minor -> has been replaced by another nt
-# did these arise as minors first?
 ```
 
 Plotting consensus changes
 ```{r}
-ggplot(filter(con_change, quality == "good", inf_route == "Contact"), aes(x = DPI, y = majorfreq, color = diet)) +
+all_con_plot = ggplot(con_change, aes(x = DPI, y = majorfreq, color = maj)) +
   geom_point() +
-  facet_grid(inf_route~ferretID) +
+  geom_line(aes(group = segment)) +
+  facet_grid(~ferretID) +
+  ylim(0,1) +
+  ylab("Allele frequency") +
+  xlab("Days post infection (dpi)") +
+  PlotTheme1 #+
+  #DietcolScale
+print(all_con_plot)
+ggsave(all_con_plot, file = "all_con_plot.pdf", path = savedir, width = 10, height = 5)
+#these consensus changes don't persist over multiple time points, with the exception of 1974_HA S95A (aa #s) and 2254_PA F9F (aa #s)
+```
+
+# Check if non-persistence is due to lack of sample (infection has been cleared or smaple not sequenced)
+```{r}
+f = unique(con_change$ferretID)
+ggplot(filter(meta, ferretID %in% f), aes(x = DPI, y = titer)) + 
+  geom_point(aes(color = quality)) +
+  facet_grid(~ferretID) +
+  PlotTheme1
+
+# 1409 has no titer data
+# 1794 and 2254 persist
+# 1986, 2232_d08 could be due to no titer at later time points
+# 1980, 2231, 2232_d06 have subsequent days that are high quality (can't be explained this way)
+```
+
+# Is there a bias in when these consensus changes arise?
+```{r}
+no_repeats = filter(con_change, sample != "2254_d08" & sample != "1794_d10")
+
+ggplot(no_repeats, aes(x = DPI, y = aa_change)) + 
+  geom_point(aes(color = nonsyn)) +
+  PlotTheme1 
+
+# no pattern with either diet or nonsyn/syn
+```
+
+# Is there a bias in allele frequency between nonsyn and syn?
+```{r}
+con_freqs = ggplot(con_change, aes(x = nonsyn, y = majorfreq)) + 
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, aes(color = diet)) +
+  ylim(0,1) +
+  xlab("Mutation type") + 
+  ylab("Allele frequency") +
   PlotTheme1 +
   DietcolScale
+print(con_freqs)
+ggsave(con_freqs, file = "con_freqs.pdf", path = savedir, width = 5, height = 4)
+
+n = filter(con_change, nonsyn == "nonsyn")
+s = filter(con_change, nonsyn == "syn")
+t.test(n$majorfreq,s$majorfreq)
 ```
+
 ```{r}
-con_change$aa_change = paste0(con_change$stockaa,con_change$aapos,con_change$majoraa)
-con_change$nt_change = paste0(con_change$stocknt,con_change$ntpos,con_change$major)
+select(con_change, stocknt, major, minor)
+# in all cases, the stocknt is the minor -> has been replaced by another nt
+# did these arise as minors first?
 
 cons = select(con_change, ferretID, segment, nonsyn, nt_change,aa_change, majorfreq, diet, inf_route) 
 write.csv(cons, "consensus_changes.csv", row.names = FALSE)
 ```
 
 ```{r}
-con_change$var = paste0(con_change$ferretID,"_",con_change$segment,"_",
-                        con_change$major,"_",con_change$ntpos,"_",con_change$minor)
+con_change$var = paste0(con_change$ferretID,"_",con_change$segment,"_",con_change$major,"_",con_change$ntpos,"_",con_change$minor)
 consensus = unique(con_change$var)
 length(consensus)
 ```
@@ -184,7 +239,7 @@ minorvdf = minorvdf[!duplicated(minorvdf), ]
 nrow(vdf) - nrow(minorvdf)
 ```
 
-Can the consensus changes be detected as minor variants first?
+# Can the consensus changes be detected as minor variants first?
 ```{r}
 majpos = c("H9N2_NP_326","H9N2_PB1_1882","H9N2_HA_284","H9N2_PB1_965",
            "H9N2_NS_652","H9N2_PA_1483","H9N2_HA_747","H9N2_PB2_639",
@@ -198,7 +253,7 @@ pos_minors = filter(minorvdf, var %in% majpos)
 pos_minors$freq = pos_minors$minorfreq
 pos_minors = pos_minors[!duplicated(pos_minors), ] %>% droplevels()
 
-pos_majors = con_change %>% select(!c("maj","ferretID_maj"))
+pos_majors = con_change %>% select(!c("maj"))
 pos_majors$var = paste0(pos_majors$segment,"_",pos_majors$ntpos)
 pos_majors$freq = pos_majors$majorfreq
 
@@ -224,14 +279,87 @@ pairs = read.csv(transmission_info, header = T)
 ```{r}
 all_pos = merge(all_pos, pairs)
 
-minortocon_plot = ggplot(filter(all_pos), 
-                         aes(x = DPI, y = freq, color = var)) +
+all_pos = filter(all_pos, !(ferretID == 2232 & inf_route == "Index"))
+# since 2232 is both a contact and then an index to another contact, remove the second instance so as not to double count
+# aka only consider 2232 as a contact
+
+minortocon_plot = ggplot(all_pos, aes(x = DPI, y = freq, color = var)) +
   geom_point(size = 2) +
   geom_line(aes(group = var)) +
   geom_hline(yintercept = 0.5, linetype = "dotted", color = "red") +
-  facet_grid(pair_numbers~inf_route, drop = FALSE) +
+  facet_grid(pair_numbers~inf_route) +
   PlotTheme1
 print(minortocon_plot)
-ggsave("minortocon_plot.pdf",minortocon_plot,path = savedir, height = 5, width = 10)
+ggsave("minortocon_plot.pdf",minortocon_plot,path = savedir, height = 5, width = 7)
 
+
+ggplot(filter(all_pos, var == "H9N2_PB1_1882" & pair_numbers != "2232-2244"), aes(x = DPI, y = freq)) +
+  geom_point(size = 2, aes(color = freq > 0.5) ) +
+  geom_line(aes(group = var)) +
+  #geom_hline(yintercept = 0.5, linetype = "dotted", color = "red") +
+  facet_grid(pair_numbers~inf_route) +
+  PlotTheme1
+```
+# AF correlation between PB1 L628M and PA T109I
+```{r}
+corr = filter(all_pos, var =="H9N2_PB1_1882" | var == "H9N2_NP_326") %>% filter(!(ferretID == "2232" & inf_route == "Index"))
+corr_PB1 = filter(corr, segment == "H9N2_PB1") %>% unique() %>% select(sample, ferretID, DPI, var, aa_change, freq)
+corr_NP = filter(corr, segment == "H9N2_NP") %>% unique() %>% select(sample, ferretID, DPI, var, aa_change, freq)
+
+corr = merge(corr_PB1, corr_NP, by = c("sample","ferretID","DPI"), all= TRUE)
+corr$freq.x[is.na(corr$freq.x)] = 0
+corr$freq.y[is.na(corr$freq.y)] = 0
+
+epistasis = ggplot(corr, aes(x = freq.x, y = freq.y)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dotted") +
+  xlab("PB1 L628M frequency") +
+  ylab("NP T109I frequency") +
+  PlotTheme1
+print(epistasis)
+ggsave(epistasis, file = "epistasis.pdf", path = savedir, width = 5, height = 5)
+```
+
+# What minor varaiants are found with the consensus changes?
+```{r}
+consensus_small = select(con_change, 
+                         sample, segment, ntpos, aapos, stocknt, stockaa, major, majoraa, majorfreq, minor, minoraa, minorfreq, nonsyn, 
+                         cohort, ferretID, DPI, inf_route, diet, var, aa_change, nt_change)
+consensus_small$type = "consensus"
+consensus_small$freq = consensus_small$majorfreq
+
+minvar_small = select(minorvdf, 
+                         sample, segment, ntpos, aapos, stocknt, stockaa, major, majoraa, majorfreq, minor, minoraa, minorfreq, nonsyn,
+                         cohort, ferretID, DPI, inf_route, diet, var, aa_change, nt_change)
+minvar_small$type = "minor"
+minvar_small$freq = minvar_small$minorfreq
+
+allvar = rbind(consensus_small,minvar_small) %>% unique()
+allvar = filter(allvar, ferretID %in% f)
+
+ggplot(allvar, aes(x = DPI, y = freq)) +
+  geom_point(aes(color = type)) +
+  #geom_line(aes(group = var)) +
+  facet_grid(~ferretID) +
+  PlotTheme1
+
+allvar2 = merge(allvar, pairs, by = c("ferretID"))
+
+ggplot(allvar2, aes(x = DPI, y = freq)) +
+  geom_point(size = 2) +
+  geom_line(aes(group = var)) +
+  geom_hline(yintercept = 0.5, linetype = "dotted", color = "red") +
+  facet_grid(inf_route~pair_numbers) +
+  PlotTheme1
+```
+
+```{r}
+con_timepoints = c("1409_d06","1794_d08","1794_d10","1980_d02","1986_d10","2231_d04","2232_d06","2232_d08","2254_d04","2254_d08")
+allvar_specific = filter(allvar, sample %in% con_timepoints) %>% unique()
+
+ggplot(filter(allvar_specific, nonsyn == "nonsyn"), aes(x = segment, y = freq)) +
+  geom_point(aes(color = type)) +
+  #geom_label(aes(label = aa_change)) +
+  facet_grid(~sample) +
+  PlotTheme1
 ```

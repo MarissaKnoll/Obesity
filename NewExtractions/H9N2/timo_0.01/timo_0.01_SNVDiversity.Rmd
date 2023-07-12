@@ -24,7 +24,7 @@ DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
 DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
 ```
 
-Specifying thresholds and plotting variables
+# Specifying thresholds and plotting variables
 ```{r}
 cov_cut = 200
 freq_cut = 0.01
@@ -49,7 +49,7 @@ meta$log10_titer = as.numeric(meta$log10_titer)
 meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
 ```
 
-Loading in coverage file & segment size information
+# Loading in coverage file & segment size information
 ```{r}
 cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
 
@@ -61,7 +61,7 @@ GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
 cov$segment = factor(cov$segment, levels = SEGMENTS)
 ```
 
-Checking if data passes thresholds 
+# Checking if data passes thresholds 
 ```{r}
 cov_check = CoverageAcross(cov,cov_cut,40,sizes, wkdir)
 ```
@@ -74,7 +74,7 @@ nrow(meta)
 count(meta,quality)
 ```
 
-Loading in variant files
+# Loading in variant files
 ```{r}
 varfile = "./varfiles/H9N2.VariantsOnly.0.01.200.csv"
 
@@ -83,7 +83,7 @@ vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
 vars$name = vars$sample
 ```
 
-Rearranging variant dataframe
+# Rearranging variant dataframe
 ```{r}
 vdf = ArrangeVarWRep(vars)
 # already have replicate data in the varfiles from running CompareReps.v2.py script
@@ -91,7 +91,7 @@ vdf = vdf[!duplicated(vdf), ] %>% droplevels()
 nrow(vdf)
 ```
 
-Adding metadata
+# Adding metadata
 ```{r}
 vdf = merge(vdf,meta, by = c("sample","segment"))
 vdf = vdf[!duplicated(vdf), ] %>% droplevels()
@@ -99,7 +99,7 @@ vdf = vdf[!duplicated(vdf), ] %>% droplevels()
 vdf$segment = factor(vdf$segment, levels = SEGMENTS)
 ```
 
-How many unique ferrets? How many unique good quality ferrets?
+# How many unique ferrets? How many unique good quality ferrets?
 ```{r}
 select(vdf, ferretID) %>% unique() %>% count()
 #total number of unique ferrets that were sequenced
@@ -112,7 +112,7 @@ filter(vdf, quality == "bad") %>% select(sample) %>% unique()
 #samples that failed cov_check QC
 # mostly late time points
 # d02 time points: 1417 is an aerosol, most other aerosol samples weren't resequenced 
-#c1913 is contact lean,1981 and 1986 and 2235 are contact obese 
+# 1913 is contact lean,1981 and 1986 and 2235 are contact obese 
 ```
 
 ```{r}
@@ -126,16 +126,7 @@ vdf = filter(vdf, sample != "2244_d12") %>% unique()
 good_names = c(levels(factor(vdf$sample)))
 ```
 
-Filtering variant df by timo binocheck
-```{r}
-vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
-vdf_bino = filter(vdf, binocheck != "False")
-vdf_bino = vdf_bino[!duplicated(vdf_bino), ] %>% droplevels()
-nrow(vdf_bino)
-# this really gets rid of a lot of variants (~1000)
-```
-
-Filtering variant df with frequency cutoffs
+# Filtering variant df with frequency cutoffs
 ```{r}
 nrow(vdf)
 vdf = filter(vdf, minorfreq1 >= freq_cut & 
@@ -150,17 +141,65 @@ nrow(vdf)
 
 vdf = filter(vdf, inf_route == "Index" | inf_route == "Contact" | inf_route == "Control") %>% unique()
 # ignoring aerosol for now
+
+vdf = filter(vdf, !(ferretID == "2232" & inf_route == "Index")) %>% filter(!(ferretID == "2239" & inf_route == "Index"))
+# these two ferrets are listed as both index and contacts but I'm only using the contact info as the second infection wasn't successful
 ```
 
-How many variants per sample?
 ```{r}
-nums = vdf %>% group_by(sample) %>% tally()
+vdf_cons = filter(vdf, major != stocknt) %>% 
+  select(ferretID, DPI, segment, ntpos, aapos, stocknt, stockaa, major, majoraa, majorfreq, nonsyn) %>% unique()
+vdf_cons$ntvar = paste0(vdf_cons$stocknt,vdf_cons$ntpos,vdf_cons$major)
+vdf_cons$aavar = paste0(vdf_cons$stockaa,vdf_cons$aapos,vdf_cons$majoraa)
+vdf_cons$var = vdf_cons$major
+vdf_cons$var_aa = vdf_cons$majoraa
+vdf_cons$freq = vdf_cons$majorfreq
+vdf_cons = select(vdf_cons, ferretID, DPI, segment, ntpos, aapos, stocknt, stockaa, var, var_aa, freq, nonsyn,ntvar,aavar)
+
+vdf_mins = filter(vdf, major == stocknt) %>% 
+  select(ferretID, DPI, segment, ntpos, aapos, stocknt, stockaa, minor, minoraa, minorfreq, nonsyn) %>% unique()
+vdf_mins$ntvar = paste0(vdf_mins$stocknt,vdf_mins$ntpos,vdf_mins$minor)
+vdf_mins$aavar = paste0(vdf_mins$stockaa,vdf_mins$aapos,vdf_mins$minoraa)
+vdf_mins$var = vdf_mins$minor
+vdf_mins$var_aa = vdf_mins$minoraa
+vdf_mins$freq = vdf_mins$minorfreq
+vdf_mins = select(vdf_mins, ferretID, DPI, segment, ntpos, aapos, stocknt, stockaa, var, var_aa, freq, nonsyn,ntvar,aavar)
+
+vdf_out = rbind(vdf_cons,vdf_mins) %>% unique()
+write.table(vdf_out, file = "SNVs_Over_Thresholds.csv", sep = ",", row.names = FALSE)
+```
+
+# Filtering variant df by timo binocheck
+```{r}
+#vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
+#vdf = filter(vdf, binocheck != "False") %>% unique()
+#nrow(vdf)
+
+# binocheck is highly dependent on the allele frequency threshold used and also relatively conservative
+# as a result, ignore this in favor of found in both replicates across ferrets and cohorts - this is more indicative of a real variant than binocheck
+```
+
+# How many variants per sample?
+```{r}
+nums = vdf %>% group_by(sample, diet, inf_route) %>% tally()
 range(nums$n)
 mean(nums$n)
+median(nums$n)
+nums = separate(nums, sample, into = c("ferretID","DPI"))
+nums$samp = paste0(nums$DPI,"_",nums$ferretID)
 
-ggplot(nums, aes(x = n)) +
-  geom_histogram(binwidth = 1) +
-  PlotTheme1
+SNVS_per_sample = ggplot(nums, aes(x = samp, y = n)) +
+  geom_col(aes(fill = diet)) +
+  PlotTheme1 +
+  facet_grid(diet~DPI+inf_route) +
+  DietcolScale_fill
+print(SNVS_per_sample)
+ggsave(SNVS_per_sample, filename = "SNVS_per_sample.pdf", path = savedir, width = 10, height = 5)
+
+# this would only be for the minor variants
+#ggplot(vdf, aes(x = sample, y = minorfreq)) +
+#  geom_boxplot(outlier.shape = NA) +
+#  PlotTheme1
 ```
 
 # Loading transmission information
@@ -178,9 +217,9 @@ fercount = fercount[!duplicated(fercount), ]  %>%
   tally()
 
 fercount = separate(fercount,sample,into = c("ferretID","DPI"))
-fercount = merge(fercount, pairs, by = c("ferretID"))
+fercount2 = merge(fercount, pairs, by = c("ferretID"))
   
-p1 = fercount %>% unique() %>% 
+p1 = fercount2 %>% unique() %>% 
     ggplot(., aes(x= DPI, y = pair_numbers, fill = diet)) + 
     geom_tile(color = 'black') + 
     PlotTheme3 +
@@ -197,8 +236,10 @@ con_change = filter(vdf, stocknt != major) %>%
 con_change = con_change[!duplicated(con_change), ]
 con_change$var = paste0(con_change$ferretID,"_",con_change$segment,"_",
                         con_change$major,"_",con_change$ntpos,"_",con_change$minor)
+
 consensus = unique(con_change$var)
 length(consensus)
+
 ```
 
 # Pulling out minor variants
@@ -211,32 +252,35 @@ nrow(vdf) - nrow(minorvdf)
 ```
 
 # Distribution of variants by AF
+
 ```{r}
-minorvdf_0.03 = filter(minorvdf, minorfreq < 0.03) %>% 
+min_index = filter(minorvdf, inf_route == "Index")
+
+minorvdf_0.03 = filter(min_index, minorfreq < 0.03) %>% 
   unique() %>% 
   group_by(sample,diet,inf_route) %>% 
   tally() %>% 
   mutate(cat = "1-2.99%")
 
-minorvdf_0.05 = filter(minorvdf, minorfreq < 0.05 & minorfreq >= 0.03) %>% 
+minorvdf_0.05 = filter(min_index, minorfreq < 0.05 & minorfreq >= 0.03) %>% 
   unique() %>% 
   group_by(sample,diet,inf_route) %>% 
   tally() %>% 
   mutate(cat = "3-4.99%")
 
-minorvdf_0.1 = filter(minorvdf, minorfreq < 0.1 & minorfreq >= 0.05) %>% 
+minorvdf_0.1 = filter(min_index, minorfreq < 0.1 & minorfreq >= 0.05) %>% 
   unique() %>% 
   group_by(sample,diet,inf_route) %>% 
   tally() %>% 
   mutate(cat = "5-9.99%")
 
-minorvdf_0.3 = filter(minorvdf, minorfreq < 0.3 & minorfreq >= 0.1) %>% 
+minorvdf_0.3 = filter(min_index, minorfreq < 0.3 & minorfreq >= 0.1) %>% 
   unique() %>% 
   group_by(sample,diet,inf_route) %>% 
   tally() %>% 
   mutate(cat = "10-29.99%")
 
-minorvdf_0.5 = filter(minorvdf, minorfreq < 0.5 & minorfreq >= 0.3) %>% 
+minorvdf_0.5 = filter(min_index, minorfreq < 0.5 & minorfreq >= 0.3) %>% 
   unique() %>% 
   group_by(sample,diet,inf_route) %>% 
   tally() %>%
@@ -244,10 +288,11 @@ minorvdf_0.5 = filter(minorvdf, minorfreq < 0.5 & minorfreq >= 0.3) %>%
 
 minors = rbind(minorvdf_0.03,minorvdf_0.05, minorvdf_0.1, minorvdf_0.3, minorvdf_0.5)
 minors$cat = factor(minors$cat, levels = c("1-2.99%","3-4.99%","5-9.99%","10-29.99%","30-49.99%"))
+mins = separate(minors, sample, into = c("ferretID","DPI"))
 ```
 
 ```{r}
-con_change_1.0 = filter(con_change, majorfreq < 1.0 & majorfreq >= 0.5) %>% 
+con_change_1.0 = filter(con_change, inf_route == "Index" & ferretID != "2232") %>% 
   unique() %>% 
   group_by(sample,diet,inf_route) %>% 
   tally() %>%
@@ -255,31 +300,129 @@ con_change_1.0 = filter(con_change, majorfreq < 1.0 & majorfreq >= 0.5) %>%
 
 majors = con_change_1.0
 majors$cat = factor(majors$cat, levels = c("50-99.99%"))
+majs = separate(majors, sample, into = c("ferretID","DPI"))
 ```
 
 ```{r}
+days = c("d02","d04","d06")
+mins_in = filter(mins, inf_route == "Index" & DPI %in% days)
+majs_in = filter(majs, inf_route == "Index" & DPI %in% days)
+
 freq_dist = ggplot() +
-  geom_boxplot(aes(x = cat, y = n, color = diet), filter(minors, inf_route == "Index"), outlier.shape = NA) +
-  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), filter(minors, inf_route == "Index"), width = 0.2) +
-  geom_boxplot(aes(x = cat, y = n, color = diet), filter(majors, inf_route == "Index"), outlier.shape = NA) +
-  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), filter(majors, inf_route == "Index"), width = 0.2) +
+  geom_boxplot(aes(x = cat, y = n, color = diet), mins_in, outlier.shape = NA) +
+  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), mins_in, width = 0.2, alpha = 0.5) +
+  geom_boxplot(aes(x = cat, y = n, color = diet), majs_in, outlier.shape = NA) +
+  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), majs_in, width = 0.2, alpha = 0.5) +
   PlotTheme1 +
   DietcolScale
 print(freq_dist)
 ggsave(freq_dist, file = "freq_dist.pdf", path = savedir, width = 10, height = 7)
+
+# This woudl be to look at all ferrets, not just index
+#ggplot() +
+#  geom_boxplot(aes(x = cat, y = n, color = diet), minors, outlier.shape = NA) +
+#  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), minors, width = 0.2) +
+#  geom_boxplot(aes(x = cat, y = n, color = diet), majors, outlier.shape = NA) +
+#  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), majors, width = 0.2) +
+#  PlotTheme1 +
+#  DietcolScale
 ```
+
+# Remake this plot separated out by nonsyn and syn
+```{r}
+minorvdf_0.03 = filter(minorvdf, minorfreq < 0.03) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route,nonsyn) %>% 
+  tally() %>% 
+  mutate(cat = "1-2.99%")
+
+minorvdf_0.05 = filter(minorvdf, minorfreq < 0.05 & minorfreq >= 0.03) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route,nonsyn) %>% 
+  tally() %>% 
+  mutate(cat = "3-4.99%")
+
+minorvdf_0.1 = filter(minorvdf, minorfreq < 0.1 & minorfreq >= 0.05) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route,nonsyn) %>% 
+  tally() %>% 
+  mutate(cat = "5-9.99%")
+
+minorvdf_0.3 = filter(minorvdf, minorfreq < 0.3 & minorfreq >= 0.1) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route,nonsyn) %>% 
+  tally() %>% 
+  mutate(cat = "10-29.99%")
+
+minorvdf_0.5 = filter(minorvdf, minorfreq < 0.5 & minorfreq >= 0.3) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route,nonsyn) %>% 
+  tally() %>%
+  mutate(cat = "30-49.99%")
+
+minors = rbind(minorvdf_0.03,minorvdf_0.05, minorvdf_0.1, minorvdf_0.3, minorvdf_0.5)
+minors$cat = factor(minors$cat, levels = c("1-2.99%","3-4.99%","5-9.99%","10-29.99%","30-49.99%"))
+mins = separate(minors, sample, into = c("ferretID","DPI"))
+```
+
+```{r}
+con_change_1.0 = filter(con_change, majorfreq < 1.0 & majorfreq >= 0.5) %>% 
+  unique() %>% 
+  group_by(sample,diet,inf_route,nonsyn) %>% 
+  tally() %>%
+  mutate(cat = "50-99.99%")
+
+majors = con_change_1.0
+majors$cat = factor(majors$cat, levels = c("50-99.99%"))
+majs = separate(majors, sample, into = c("ferretID","DPI"))
+```
+
+```{r}
+days = c("d02","d04","d06")
+mins_in = filter(mins, inf_route == "Index" & DPI %in% days) %>% filter(!(is.na(nonsyn)))
+mins_in$type = paste0(mins_in$nonsyn,"_",mins_in$cat)
+majs_in = filter(majs, inf_route == "Index" & DPI %in% days)%>% filter(!(is.na(nonsyn)))
+majs_in$type = paste0(majs_in$nonsyn,"_",majs_in$cat)
+
+freq_dist = ggplot() +
+  geom_boxplot(aes(x = cat, y = n, color = diet), mins_in, outlier.shape = NA) +
+  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), mins_in, width = 0.2, alpha = 0.5) +
+  geom_boxplot(aes(x = cat, y = n, color = diet), majs_in, outlier.shape = NA) +
+  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), majs_in, width = 0.2, alpha = 0.5) +
+  #facet_grid(~DPI) +
+  PlotTheme1 +
+  DietcolScale
+print(freq_dist)
+ggsave(freq_dist, file = "freq_dist.pdf", path = savedir, width = 10, height = 7)
+
+ggplot() +
+  geom_boxplot(aes(x = nonsyn, y = n, color = diet), mins_in, outlier.shape = NA) +
+  geom_jitter(aes(x = nonsyn, y = n, color = diet, group = diet), mins_in, width = 0.2, alpha = 0.5) +
+  #geom_boxplot(aes(x = cat, y = n, color = diet), majs_in, outlier.shape = NA) +
+  #geom_jitter(aes(x = cat, y = n, color = diet, group = diet), majs_in, width = 0.2, alpha = 0.5) +
+  facet_grid(~cat) +
+  PlotTheme1 +
+  DietcolScale
+print(freq_dist)
+ggsave(freq_dist, file = "freq_dist.pdf", path = savedir, width = 10, height = 7)
+
+# This woudl be to look at all ferrets, not just index
+#ggplot() +
+#  geom_boxplot(aes(x = cat, y = n, color = diet), minors, outlier.shape = NA) +
+#  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), minors, width = 0.2) +
+#  geom_boxplot(aes(x = cat, y = n, color = diet), majors, outlier.shape = NA) +
+#  geom_jitter(aes(x = cat, y = n, color = diet, group = diet), majors, width = 0.2) +
+#  PlotTheme1 +
+#  DietcolScale
+```
+
 # Testing for significance
 ```{r}
-o = filter(minors, inf_route == "Index" & cat == "50-99.99%" & diet == "Obese")
-l = filter(minors, inf_route == "Index" & cat == "50-99.99%" & diet == "Lean")
+o = filter(minors, inf_route == "Index" & cat == "1-2.99%" & nonsyn == "syn" & diet == "Obese")
+l = filter(minors, inf_route == "Index" & cat == "1-2.99%" & nonsyn == "syn" & diet == "Lean")
 t.test(o$n,l$n)
 
 # Significance: none
-```
-
-```{r}
-# Is there a bias in terms of dpi in above plot?
-
 ```
 
 # Tallying SNVs
@@ -292,6 +435,9 @@ group_list_gen = c('ferretID',"DPI","diet","inf_route","cohort") # Counts across
 
 seg_count = TallyIt(vdf, group_list_seg, "snv_count")
 gen_count = TallyIt(vdf, group_list_gen, "snv_count") 
+
+nonsyn_count_gen = c('ferretID',"DPI","diet","inf_route","cohort", "nonsyn")
+ngen_count = TallyIt(vdf, nonsyn_count_gen, "snv_count") %>% filter(!is.na(nonsyn))
 ```
 
 ```{r}
@@ -354,9 +500,32 @@ ggplot(. , aes(x = factor(DPI, levels = c("Stock","d02","d04","d06")), color = d
 print(gen_count2)
 ggsave("gen_count2.pdf",gen_count2,path=savedir, width = 10, height = 7)
 
-counts = filter(gen_count,inf_route == "Index") %>% filter(DPI == "d02" | DPI == "d04" | DPI == "d06")
+ngen_count$cat = paste0(ngen_count$diet,"_",ngen_count$nonsyn)
+
+nonsyn_count = ngen_count %>% group_by(DPI,diet,inf_route,nonsyn) %>% mutate(avg_snv = mean(snv_count)) %>% ungroup() %>%
+  filter(inf_route == "Index" | inf_route == "Control") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06" | DPI == "Stock") %>%
+ggplot(. , aes(x = factor(DPI, levels = c("Stock","d02","d04","d06")), color = diet)) +
+  geom_jitter(aes(y = snv_count, shape = nonsyn), size = 1, width = 0.2, alpha = 0.5) +
+  geom_point(aes(y = avg_snv), size = 3) +
+  geom_line(aes(y = avg_snv, group = cat, linetype = nonsyn), size = 1.5) +
+  #geom_boxplot(aes(y = snv_count), outlier.shape = NA) +
+  #geom_jitter(aes(y = snv_count, color = diet), width = 0.2) +
+  ylab("SNV richness") +
+  xlab("DPI") +
+  #facet_grid(~diet) +
+  PlotTheme1 +
+  DietcolScale
+print(nonsyn_count)
+ggsave(nonsyn_count, file = "nonsyn_count.pdf", path = savedir, width = 12, height = 9)
+
+counts = filter(ngen_count,inf_route == "Index", nonsyn == "nonsyn") %>% filter(DPI == "d02" | DPI == "d04" | DPI == "d06")
 aov.counts = aov(snv_count ~ diet, counts)
 summary(aov.counts)
+
+o = filter(ngen_count, inf_route == "Index" & nonsyn == "syn" & diet == "Obese" & DPI == "d06")
+l = filter(ngen_count, inf_route == "Index" & nonsyn == "syn" & diet == "Lean" & DPI == "d06")
+t.test(o$snv_count, l$snv_count)
 ```
 
 By segment
@@ -511,7 +680,7 @@ ggsave(Ct_SNV_Corr, file = "Ct_SNV_Corr.pdf", path = savedir, width = 10, height
 test_index = filter(gen_count_ct, inf_route == "Index")
 test_contact = filter(gen_count_ct, inf_route == "Contact")
 
-m = lm(test_contact$snv_count ~ test_contact$Ct_Mgene)
+m = lm(test_index$snv_count ~ test_index$Ct_Mgene)
 summary(m)
 ```
 
@@ -668,14 +837,17 @@ vdf_stocks = filter(vdf, inf_route == "Index")
 vdf_stocks$ntvar = paste0(vdf_stocks$segment,"_",vdf_stocks$major,"_",vdf_stocks$ntpos,"_",vdf_stocks$minor)
 vdf_stocks = filter(vdf_stocks, ntvar %in% keep_vars)
 
-stockvar_index = ggplot(filter(vdf_stocks, inf_route == "Index"), aes(x = DPI, y = minorfreq, color = diet)) +
+vdf_stocks_in = filter(vdf_stocks, inf_route == "Index") %>% 
+  filter(DPI == "d02" | DPI == "d04" | DPI == "d06")
+
+stockvar_index = ggplot(vdf_stocks_in, aes(x = DPI, y = minorfreq, color = diet)) +
   geom_point() +
   geom_line(aes(group = ferretID)) +
   facet_grid(~ntvar) +
   PlotTheme1 +
   DietcolScale
 print(stockvar_index)
-ggsave(stockvar_index, file = "stockvar_index.pdf",path = savedir, width = 10, height = 5)
+ggsave(stockvar_index, file = "stockvar_index.pdf",path = savedir, width = 15, height = 5)
 ```
 
 # Loading in data after running bottleneck code

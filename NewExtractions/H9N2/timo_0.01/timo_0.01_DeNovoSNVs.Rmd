@@ -25,7 +25,7 @@ DietcolScale_fill <- scale_fill_manual(name = "grp",values = dietColors)
 DietcolScale <- scale_colour_manual(name = "grp",values = dietColors)
 ```
 
-Specifying thresholds and plotting variables
+# Specifying thresholds and plotting variables
 ```{r}
 cov_cut = 200
 freq_cut = 0.01
@@ -50,7 +50,7 @@ meta$log10_titer = as.numeric(meta$log10_titer)
 meta$inf_route = factor(meta$inf_route, levels = c("Index","Contact","Aerosol","Control"))
 ```
 
-Loading in coverage file & segment size information
+# Loading in coverage file & segment size information
 ```{r}
 cov = read.csv("./avg_coverage/H9N2.coverage.csv", header = TRUE, sep = ",")
 
@@ -61,12 +61,12 @@ GenomeSize = (sizes %>% filter(segment == 'H9N2_GENOME'))$SegmentSize
 cov$segment = factor(cov$segment, levels = SEGMENTS)
 ```
 
-Checking if data passes thresholds
+# Checking if data passes thresholds
 ```{r}
 cov_check = CoverageAcross(cov,cov_cut,40,sizes, wkdir)
 ```
 
-Merging coverage check info with the rest of the metadata
+# Merging coverage check info with the rest of the metadata
 ```{r}
 meta = merge(meta, cov_check, by.x = c("sample"), by.y = c("name"), all.y = TRUE)
 
@@ -74,7 +74,7 @@ nrow(meta)
 count(meta,quality)
 ```
 
-Loading in variant files
+# Loading in variant files
 ```{r}
 varfile = "./varfiles/H9N2.VariantsOnly.0.01.200.csv"
 
@@ -83,7 +83,7 @@ vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
 vars$name = vars$sample
 ```
 
-Rearranging variant dataframe
+# Rearranging variant dataframe
 ```{r}
 vdf = ArrangeVarWRep(vars)
 # already have replicate data in the varfiles from running CompareReps.v2.py script
@@ -91,16 +91,7 @@ vdf = vdf[!duplicated(vdf), ] %>% droplevels()
 nrow(vdf)
 ```
 
-Filtering variant df by timo binocheck
-```{r}
-vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
-vdf_bino = filter(vdf, binocheck != "False")
-vdf_bino = vdf_bino[!duplicated(vdf_bino), ] %>% droplevels()
-nrow(vdf_bino)
-# this really gets rid of a lot of variants (~1000)
-```
-
-Filtering variant df with frequency cutoffs
+# Filtering variant df with frequency cutoffs
 ```{r}
 vdf = filter(vdf, minorfreq1 >= freq_cut & 
                minorfreq2 >= freq_cut & 
@@ -115,7 +106,17 @@ nrow(vdf)
 # does not eliminate any variants here
 ```
 
-Adding metadata
+# Filtering variant df by timo binocheck
+```{r}
+#vdf$binocheck = factor(vdf$binocheck, levels = c("False","R1","R2","True"))
+#vdf = filter(vdf, binocheck != "False") %>% unique()
+#nrow(vdf)
+
+# binocheck is highly dependent on the allele frequency threshold used and also relatively conservative
+# as a result, ignore this in favor of found in both replicates across ferrets and cohorts - this is more indicative of a real variant than binocheck
+```
+
+# Adding metadata
 ```{r}
 vdf = merge(vdf,meta, by = c("sample","segment"))
 vdf = vdf[!duplicated(vdf), ] %>% droplevels()
@@ -124,6 +125,10 @@ vdf$segment = factor(vdf$segment, levels = SEGMENTS)
 
 vdf = filter(vdf, inf_route == "Index" | inf_route == "Contact" | inf_route == "Control")
 # ignoring aerosol for now
+
+vdf = filter(vdf, !(ferretID == 2232 & inf_route == "Index"))
+# since 2232 is both a contact and then an index to another contact, remove the second instance so as not to double count
+# aka only consider 2232 as a contact
 ```
 
 ```{r}
@@ -213,10 +218,10 @@ Sp20_denovo = Sp20_ferret %>% filter((ntvar %in% Sp20_ferret_ntvar)) %>% filter(
 ```
 
 ```{r}
-stock_shared = rbind(F17_shared, W17_shared, Sm18_shared, Sp19_shared, Sp20_shared)
+stock_shared = rbind(F17_shared, W17_shared, Sm18_shared, Sp19_shared, Sp20_shared) %>% unique()
 stock_shared$aavar = paste0(stock_shared$majoraa,stock_shared$aapos,stock_shared$minoraa)
 
-ferunique = rbind(F17_denovo, W17_denovo, Sm18_denovo, Sp19_denovo, Sp20_denovo)
+ferunique = rbind(F17_denovo, W17_denovo, Sm18_denovo, Sp19_denovo, Sp20_denovo) %>% unique
 ferunique$aavar = paste0(ferunique$majoraa,ferunique$aapos,ferunique$minoraa)
 ```
 
@@ -299,22 +304,22 @@ dietunique = select(dietunique, !(n))
 # FIGURE THIS OUT
 #had to look up these positions manually
 MP_G459A = filter(dietunique, ntvar == "H9N2_MP_G459A") %>% unique()
-MP_G459A$nonsyn = ""
-MP_G459A$aavar = ""
+MP_G459A$nonsyn = "syn"
+MP_G459A$aavar = "Q153Q"
 MP_T444C = filter(dietunique, ntvar == "H9N2_MP_T444C") %>% unique()
-MP_T444C$nonsyn = ""
-MP_T444C$aavar = ""
+MP_T444C$nonsyn = "syn"
+MP_T444C$aavar = "C148C"
 MP_G339A = filter(dietunique, ntvar == "H9N2_MP_G339A") %>% unique()
-MP_G339A$nonsyn = ""
-MP_G339A$aavar = ""
+MP_G339A$nonsyn = "syn"
+MP_G339A$aavar = "K113K"
 
 MPs = c("H9N2_MP_G459A","H9N2_MP_T444C","H9N2_MP_G339A")
 rest = filter(dietunique, !(ntvar %in% MPs)) %>% unique()
-dietunique2 = rbind(rest, MP_G459A,MP_T444C,MP_G339A)
+dietunique = rbind(rest, MP_G459A,MP_T444C,MP_G339A)
 ```
 
 ```{r}
-DietUnique = ggplot(filter(dietunique, ferret_num == 2), 
+DietUnique = ggplot(filter(dietunique, ferret_num == 2, nonsyn == "nonsyn"), 
                     aes(x = ntpos,
                         y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
   geom_point(aes(color = nonsyn, size = 2)) + 
@@ -349,7 +354,8 @@ t.test(o_in$minorfreq, o_co$minorfreq)
 
 # Diet adaptation (lean and obese) -> higher AF than non shared?
 ind = filter(dietunique, nonsyn == "nonsyn" & ferret_num == 2 & inf_route == "Index")
-t.test(ind$minorfreq,non_share$minorfreq)
+#t.test(ind$minorfreq,non_share$minorfreq)
+#
 ```
 
 ```{r}
@@ -390,9 +396,10 @@ dietunique_repeats = rbind(obese_wrep,lean_wrep) %>% unique()
 
 ```{r}
 persistence = ggplot(filter(dietunique_repeats, nonsyn == "nonsyn" & fer_num == 2), aes(x = DPI, y = minorfreq)) +
-  geom_point() +
-  geom_line(aes(group = ntvar, color = ntvar)) +
-  facet_grid(diet~ferretID)
+  geom_point(aes(color = ntvar)) +
+  geom_line(aes(group = ntvar)) +
+  facet_grid(~ferretID) +
+  PlotTheme1
 print(persistence)
 ggsave(persistence, filename = "persistence.pdf", path = savedir, width = 25, height = 5)
 ```
@@ -411,6 +418,20 @@ timing = filter(dietunique, diet == "Obese" & nonsyn == "nonsyn" & ferret_num ==
 ggplot(timing, aes(x = DPI, y = day_ratio)) +
   geom_col() +
   facet_grid(~inf_route) +
+  PlotTheme1
+
+timing_bydiet = filter(dietunique,nonsyn == "nonsyn" & ferret_num == 2) %>%
+  mutate(count = 1) %>% 
+  group_by(diet,inf_route, DPI) %>%
+  mutate(perday = sum(count)) %>%
+  group_by(diet,inf_route) %>% 
+  mutate(pergroup = sum(count)) %>%
+  mutate(day_ratio = perday / pergroup) %>%
+  select(DPI,diet,inf_route, perday,pergroup, day_ratio) %>% unique()
+
+ggplot(timing_bydiet, aes(x = DPI, y = day_ratio)) +
+  geom_col() +
+  facet_grid(diet~inf_route) +
   PlotTheme1
 ```
 
@@ -437,8 +458,9 @@ for(i in t){
 #formatting stuff
 notshared = filter(dietunique, ferret_num == 1)
 notshared$transmission = 0
-transmitted$n = transmitted$n.x
-transmitted = transmitted %>% select(!(n.x)) %>% select(!(n.y))
+
+transmitted$transmission = transmitted$n
+transmitted = transmitted %>% select(!(n))
 
 dietunique = rbind(notshared, transmitted)
 dietunique$transmission = as.character(dietunique$transmission)
@@ -462,14 +484,14 @@ ggsave(DietUnique_Transmission, file = "DietUnique_Transmission.pdf", width = 7,
 # Pulling out repeated nonsynonymous mutations
 ```{r}
 nonsyns = filter(dietunique, nonsyn == "nonsyn" & ferret_num > 1) %>% ungroup() %>% unique() %>% droplevels() 
-nonsyns_smol = select(nonsyns,ntvar,aavar,diet,inf_route,n) %>% droplevels()
+nonsyns_smol = select(nonsyns,ntvar,aavar,diet,inf_route,transmission) %>% droplevels()
 write.csv(nonsyns_smol, "nonsyns.csv")
 
-nonsyns_dietunique = filter(dietunique, nonsyn == "nonsyn" & n > 1) %>% 
+nonsyns_dietunique = filter(dietunique, nonsyn == "nonsyn" & transmission > 1) %>% 
   ungroup() %>% 
-  select(diet,ntvar,aavar,n) %>%
+  select(diet,ntvar,aavar,transmission) %>%
   unique() %>%
-  arrange(desc(n))
+  arrange(desc(transmission))
 
 write.table(nonsyns_dietunique, "nonsyns_dietunique.csv", sep = ",", row.names = FALSE)
 ```
@@ -495,7 +517,7 @@ SharedPlot = ggplot(shared,
                     aes(x = ntpos,
                         y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
   geom_point(aes(size = n, color = nonsyn)) +
-  geom_text(data = filter(shared, ferret_num > 4, nonsyn == "nonsyn"), aes(label = aavar, vjust = 2, hjust = 0.5)) +
+  geom_text(data = filter(shared, n > 4, nonsyn == "nonsyn"), aes(label = aavar, vjust = 2, hjust = 0.5)) +
   ggtitle("Number of samples containing each variant - Shared between diet groups") +
   ylab("Segment") +
   xlab("Nucleotide Position") +
@@ -506,7 +528,7 @@ ggsave(SharedPlot, filename = "SegmentSNVPlot_DietShared.pdf", path = savedir, h
 
 # Extracting common nonsynonymous variants shared between diet groups
 ```{r}
-nonsyns_shared = filter(shared, nonsyn == "nonsyn" & ferret_num > 1) %>% 
+nonsyns_shared = filter(shared, nonsyn == "nonsyn" & n > 1) %>% 
   ungroup() %>% 
   select(ntvar,aavar,minorfreq,n) %>%
   unique() %>%
@@ -525,8 +547,8 @@ ggplot(nonsyns_shared, aes(x = minorfreq)) +
 select(nonsyns_shared, !minorfreq) %>% unique() %>% ggplot(., aes(x = n)) + geom_histogram(binwidth = 1)
 # determining cutoffs for high and low shared
 
-low_shared = filter(nonsyns_shared, n < 11) %>% unique() %>% mutate(cat = "low")
-high_shared = filter(nonsyns_shared, n > 11) %>% unique() %>% mutate(cat = "high")
+low_shared = filter(nonsyns_shared, n < 5) %>% unique() %>% mutate(cat = "low")
+high_shared = filter(nonsyns_shared, n > 5) %>% unique() %>% mutate(cat = "high")
 all_shared = rbind(low_shared, high_shared)
 
 ggplot(low_shared, aes(x = minorfreq)) +
@@ -565,10 +587,16 @@ t.test(non_share$minorfreq, high_shared$minorfreq)
 # Combining all shared(btw obese and lean) compared to not shared
 ```{r}
 share_v_noshare_AF = ggplot(try_all, aes(y = minorfreq, x = cat, color = cat)) +
-  geom_boxplot() +
+  geom_boxplot(outlier.shape = NA) + 
+  #geom_jitter(alpha = 0.3) +
+  ylim(0,0.1) +
   PlotTheme1
 print(share_v_noshare_AF)
 ggsave(share_v_noshare_AF, filename = "share_v_noshare_AF.pdf", path = savedir, height = 5, width = 9)
+
+ggplot(try_all, aes(y = minorfreq, x = cat, color = cat)) +
+  geom_violin() +
+  PlotTheme1
 
 t.test(non_share$minorfreq, all_shared$minorfreq)
 ```
