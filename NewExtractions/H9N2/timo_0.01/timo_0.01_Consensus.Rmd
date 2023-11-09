@@ -14,6 +14,8 @@ setwd(wkdir)
 savedir = "~/Desktop/GitHub/Obesity/NewExtractions/H9N2/timo_0.01/Output_Figures"
 
 source("~/Desktop/GitHub/Obesity/NewExtractions/H9N2/FD_functions.R")
+
+
 ```
 
 ```{r}
@@ -241,27 +243,26 @@ nrow(vdf) - nrow(minorvdf)
 
 # Can the consensus changes be detected as minor variants first?
 ```{r}
-majpos = c("H9N2_NP_326","H9N2_PB1_1882","H9N2_HA_284","H9N2_PB1_965",
-           "H9N2_NS_652","H9N2_PA_1483","H9N2_HA_747","H9N2_PB2_639",
-           "H9N2_PB1_1882")
-  
-minorvdf$var = paste0(minorvdf$segment,"_",minorvdf$ntpos)
-minorvdf$aa_change = paste0(minorvdf$stockaa,minorvdf$aapos,minorvdf$majoraa)
-minorvdf$nt_change = paste0(minorvdf$stocknt,minorvdf$ntpos,minorvdf$major)
+con_change$varpos = paste0(con_change$segment,"_",con_change$ntpos)
+# using the position to detect when the consensus and minor flip, checked that there were only two nts found for every position
+consensus_varpos = unique(con_change$varpos)
+consensus_ferrets = unique(con_change$ferretID)
+minorvdf$varpos = paste0(minorvdf$segment,"_",minorvdf$ntpos)
 
-pos_minors = filter(minorvdf, var %in% majpos)
-pos_minors$freq = pos_minors$minorfreq
-pos_minors = pos_minors[!duplicated(pos_minors), ] %>% droplevels()
+minors_before_consensus = filter(minorvdf, varpos %in% consensus_varpos) %>% unique()
+minors_before_consensus$freq = minors_before_consensus$minorfreq
+minors_before_consensus$aa_change = paste0(minors_before_consensus$stockaa,minors_before_consensus$aapos,minors_before_consensus$majoraa)
+minors_before_consensus$nt_change = paste0(minors_before_consensus$stocknt,minors_before_consensus$ntpos,minors_before_consensus$major)
 
-pos_majors = con_change %>% select(!c("maj"))
-pos_majors$var = paste0(pos_majors$segment,"_",pos_majors$ntpos)
-pos_majors$freq = pos_majors$majorfreq
+consensus_changes = con_change %>% select(!c("maj")) %>% unique()
+consensus_changes$freq = consensus_changes$majorfreq
 
-all_pos = rbind(pos_majors,pos_minors) %>% droplevels()
+all_pos = rbind(minors_before_consensus,consensus_changes) %>% unique()
 all_pos$segment = factor(all_pos$segment, levels = SEGMENTS)
-all_pos$diet = factor(all_pos$diet, levels = c("Obese","Lean"))
+all_pos$diet = factor(all_pos$diet, levels = c("Control","Obese","Lean"))
 
-all_pos = filter(all_pos, ferretID == "1409"|
+all_pos = filter(all_pos, ferretID == "HK1073" | 
+                ferretID == "1408"| ferretID == "1409"|
                 ferretID == "1789"| ferretID == "1794"|
                 ferretID == "1801"| ferretID == "1797"|
                 ferretID == "1971"| ferretID == "1980"|
@@ -269,6 +270,16 @@ all_pos = filter(all_pos, ferretID == "1409"|
                 ferretID == "2253"| ferretID == "2231"|
                 ferretID == "2233"| ferretID == "2232"|
                 ferretID == "2254"| ferretID == "2238")
+#only need the ferrets in which the consensus changes are found
+
+varpos_plot = ggplot(all_pos, aes(x = DPI, y = freq)) + 
+  geom_point(aes(color = varpos), size = 0.5) +
+  geom_line(aes(group = varpos, color = varpos)) +
+  geom_hline(yintercept = 0, linetype = "dotted", color = "black") +
+  facet_grid(cohort~ferretID) +
+  PlotTheme1
+print(varpos_plot)
+ggsave("Consensus_Vars_All_Observations.pdf", varpos_plot, path = savedir, height = 5, width = 7)
 ```
 
 ```{r}

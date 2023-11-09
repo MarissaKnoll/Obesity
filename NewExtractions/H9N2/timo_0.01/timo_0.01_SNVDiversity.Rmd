@@ -83,6 +83,23 @@ vars = read.csv(file=varfile,header=T,sep=",",na.strings = c(''))
 vars$name = vars$sample
 ```
 
+
+# How much variaiton is there in allel frequency estimation between replciates?
+```{r}
+ggplot(vars, aes(x = freq1, y = freq2)) +
+  geom_point() +
+  geom_abline(slope = 1)
+
+vars_var = select(vars, sample, segment, ntpos, refnt, nt,majmin, freq1, freq2) %>% mutate(diff = abs(freq1 - freq2))
+range(vars_var$diff)
+
+ggplot(vars_var, aes(x = diff)) +
+  geom_histogram(binwidth = 0.01) +
+  #facet_grid(~majmin) +
+  xlab("Replicate 1 frequency - replicate 2 frequency") +
+  PlotTheme2
+```
+
 # Rearranging variant dataframe
 ```{r}
 vdf = ArrangeVarWRep(vars)

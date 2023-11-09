@@ -147,22 +147,21 @@ pairs = read.csv(transmission_info, header = T)
 con_change = filter(vdf, stocknt != major) %>%
   filter(major %in% ntlist)
 con_change = con_change[!duplicated(con_change), ]
-con_change$ntvar = paste0(con_change$ferretID,"_",con_change$segment,"_",
-                        con_change$major,"_",con_change$ntpos,"_",con_change$minor)
+con_change$ntvarpos = paste0(con_change$segment,"_",con_change$ntpos)
 consensus = unique(con_change$ntvar)
 length(consensus)
 ```
 
 ```{r}
-vdf$ntvar = paste0(vdf$ferretID,"_",vdf$segment,"_",vdf$major,"_",vdf$ntpos,"_",vdf$minor)
+vdf$ntvarpos = paste0(vdf$segment,"_",vdf$ntpos)
 
-minorvdf = filter(vdf, !(ntvar %in% consensus)) %>% unique()
+minorvdf = filter(vdf, !(ntvarpos %in% consensus)) %>% unique()
 nrow(vdf) - nrow(minorvdf)
 ```
 
 SNV location plots
 ```{r}
-SNVLocation = ggplot(minorvdf, aes(x = ntpos, y = ferretID)) +
+SNVLocation = ggplot(vdf, aes(x = ntpos, y = ferretID)) +
   geom_point(aes(color = diet, shape = cohort)) +
   facet_grid(inf_route~segment) +
   PlotTheme1 +
@@ -173,48 +172,50 @@ ggsave(SNVLocation, file = "SNVLocation.pdf", path = savedir)
 ```
 
 ```{r}
-minorvdf$ntvar = paste0(minorvdf$segment,"_",minorvdf$major,minorvdf$ntpos,minorvdf$minor)
-
 # Comparing to SNVs found in the stock
+# changed to include consensus variants 9/14/23
 
-F17_stock = filter(minorvdf, DPI == "Stock", cohort == "F17") 
-F17_stock_ntvar = unique(F17_stock$ntvar)
-W17_stock = filter(minorvdf, DPI == "Stock", cohort == "W17")
-W17_stock_ntvar = unique(W17_stock$ntvar)
-Sm18_stock = filter(minorvdf, DPI == "Stock", cohort == "Sm18")
-Sm18_stock_ntvar = unique(Sm18_stock$ntvar)
-Sp19_stock = filter(minorvdf, DPI == "Stock", cohort == "Sp19")
-Sp19_stock_ntvar = unique(Sp19_stock$ntvar)
-Sp20_stock = filter(minorvdf, DPI == "Stock", cohort == "Sp20")
-Sp20_stock_ntvar = unique(Sp20_stock$ntvar)
+F17_stock = filter(vdf, DPI == "Stock", cohort == "F17") 
+F17_stock_ntvarpos = unique(F17_stock$ntvarpos)
+W17_stock = filter(vdf, DPI == "Stock", cohort == "W17")
+W17_stock_ntvarpos = unique(W17_stock$ntvarpos)
+Sm18_stock = filter(vdf, DPI == "Stock", cohort == "Sm18")
+Sm18_stock_ntvarpos = unique(Sm18_stock$ntvarpos)
+Sp19_stock = filter(vdf, DPI == "Stock", cohort == "Sp19")
+Sp19_stock_ntvarpos = unique(Sp19_stock$ntvarpos)
+Sp20_stock = filter(vdf, DPI == "Stock", cohort == "Sp20")
+Sp20_stock_ntvarpos = unique(Sp20_stock$ntvarpos)
 
-F17_ferret = filter(minorvdf , cohort == "F17", inf_route != "Control")
-F17_ferret_ntvar = unique(F17_ferret$ntvar)
-W17_ferret = filter(minorvdf ,cohort == "W17", inf_route != "Control")
-W17_ferret_ntvar = unique(W17_ferret$ntvar)
-Sm18_ferret = filter(minorvdf ,cohort == "Sm18", inf_route != "Control")
-Sm18_ferret_ntvar = unique(Sm18_ferret$ntvar)
-Sp19_ferret = filter(minorvdf ,cohort == "Sp19", inf_route != "Control")
-Sp19_ferret_ntvar = unique(Sp19_ferret$ntvar)
-Sp20_ferret = filter(minorvdf ,cohort == "Sp20", inf_route != "Control")
-Sp20_ferret_ntvar = unique(Sp20_ferret$ntvar)
+F17_ferret = filter(vdf , cohort == "F17", inf_route != "Control")
+F17_ferret_ntvarpos = unique(F17_ferret$ntvarpos)
+W17_ferret = filter(vdf ,cohort == "W17", inf_route != "Control")
+W17_ferret_ntvarpos = unique(W17_ferret$ntvarpos)
+Sm18_ferret = filter(vdf ,cohort == "Sm18", inf_route != "Control")
+Sm18_ferret_ntvarpos = unique(Sm18_ferret$ntvarpos)
+Sp19_ferret = filter(vdf ,cohort == "Sp19", inf_route != "Control")
+Sp19_ferret_ntvarpos = unique(Sp19_ferret$ntvarpos)
+Sp20_ferret = filter(vdf ,cohort == "Sp20", inf_route != "Control")
+Sp20_ferret_ntvarpos = unique(Sp20_ferret$ntvarpos)
+
+all_stock_var = rbind(F17_stock, W17_stock, Sm18_stock, Sp19_stock, Sp20_stock) %>% select(sample, ntvarpos, aapos, major, majoraa, minor, minoraa, minorfreq, nonsyn)
+write.csv(all_stock_var, "all_stock_var.csv", row.names = FALSE)
 ```
 
 ```{r}
-F17_shared = F17_ferret %>% filter(ntvar %in% F17_stock_ntvar) %>% filter((ntvar %in% F17_ferret_ntvar)) %>% unique()
-F17_denovo = F17_ferret %>% filter((ntvar %in% F17_ferret_ntvar)) %>% filter(!(ntvar %in% F17_stock_ntvar)) %>% unique()
+F17_shared = F17_ferret %>% filter(ntvarpos %in% F17_stock_ntvarpos) %>% filter((ntvarpos %in% F17_ferret_ntvarpos)) %>% unique()
+F17_denovo = F17_ferret %>% filter((ntvarpos %in% F17_ferret_ntvarpos)) %>% filter(!(ntvarpos %in% F17_stock_ntvarpos)) %>% unique()
 
-W17_shared = W17_ferret %>% filter(ntvar %in% W17_stock_ntvar) %>% filter((ntvar %in% W17_ferret_ntvar)) %>% unique()
-W17_denovo = W17_ferret %>% filter((ntvar %in% W17_ferret_ntvar)) %>% filter(!(ntvar %in% W17_stock_ntvar)) %>% unique()
+W17_shared = W17_ferret %>% filter(ntvarpos %in% W17_stock_ntvarpos) %>% filter((ntvarpos %in% W17_ferret_ntvarpos)) %>% unique()
+W17_denovo = W17_ferret %>% filter((ntvarpos %in% W17_ferret_ntvarpos)) %>% filter(!(ntvarpos %in% W17_stock_ntvarpos)) %>% unique()
 
-Sm18_shared = Sm18_ferret %>% filter(ntvar %in% Sm18_stock_ntvar) %>% filter((ntvar %in% Sm18_ferret_ntvar)) %>% unique()
-Sm18_denovo = Sm18_ferret %>% filter((ntvar %in% Sm18_ferret_ntvar)) %>% filter(!(ntvar %in% Sm18_stock_ntvar)) %>% unique()
+Sm18_shared = Sm18_ferret %>% filter(ntvarpos %in% Sm18_stock_ntvarpos) %>% filter((ntvarpos %in% Sm18_ferret_ntvarpos)) %>% unique()
+Sm18_denovo = Sm18_ferret %>% filter((ntvarpos %in% Sm18_ferret_ntvarpos)) %>% filter(!(ntvarpos %in% Sm18_stock_ntvarpos)) %>% unique()
 
-Sp19_shared = Sp19_ferret %>% filter(ntvar %in% Sp19_stock_ntvar) %>% filter((ntvar %in% Sp19_ferret_ntvar)) %>% unique()
-Sp19_denovo = Sp19_ferret %>% filter((ntvar %in% Sp19_ferret_ntvar)) %>% filter(!(ntvar %in% Sp19_stock_ntvar)) %>% unique()
+Sp19_shared = Sp19_ferret %>% filter(ntvarpos %in% Sp19_stock_ntvarpos) %>% filter((ntvarpos %in% Sp19_ferret_ntvarpos)) %>% unique()
+Sp19_denovo = Sp19_ferret %>% filter((ntvarpos %in% Sp19_ferret_ntvarpos)) %>% filter(!(ntvarpos %in% Sp19_stock_ntvarpos)) %>% unique()
 
-Sp20_shared = Sp20_ferret %>% filter(ntvar %in% Sp20_stock_ntvar) %>% filter((ntvar %in% Sp20_ferret_ntvar)) %>% unique()
-Sp20_denovo = Sp20_ferret %>% filter((ntvar %in% Sp20_ferret_ntvar)) %>% filter(!(ntvar %in% Sp20_stock_ntvar)) %>% unique()
+Sp20_shared = Sp20_ferret %>% filter(ntvarpos %in% Sp20_stock_ntvarpos) %>% filter((ntvarpos %in% Sp20_ferret_ntvarpos)) %>% unique()
+Sp20_denovo = Sp20_ferret %>% filter((ntvarpos %in% Sp20_ferret_ntvarpos)) %>% filter(!(ntvarpos %in% Sp20_stock_ntvarpos)) %>% unique()
 ```
 
 ```{r}
@@ -223,6 +224,25 @@ stock_shared$aavar = paste0(stock_shared$majoraa,stock_shared$aapos,stock_shared
 
 ferunique = rbind(F17_denovo, W17_denovo, Sm18_denovo, Sp19_denovo, Sp20_denovo) %>% unique
 ferunique$aavar = paste0(ferunique$majoraa,ferunique$aapos,ferunique$minoraa)
+write.csv(ferunique, "AllVarNotInStock.csv")
+
+dNdS_ferunique = group_by(ferunique, diet, inf_route,ferretID, nonsyn) %>% tally() %>% 
+  filter(!(is.na(nonsyn))) %>% 
+  pivot_wider(id_cols = c(ferretID, diet,inf_route), names_from = nonsyn, values_from = n) %>%
+  mutate(dNdS_per_ferret = nonsyn/syn) %>%
+  filter(!(is.na(dNdS_per_ferret))) %>% #ferrets with 0 nonsyn or 0 syn with produce a dNdS = NA, remove these
+  group_by(diet,inf_route) %>% mutate(avg_per_diet_infroute = mean(dNdS_per_ferret))
+
+dNdS_ln = filter(dNdS_ferunique, diet == "Lean" & inf_route == "Contact") %>% ungroup()
+dNdS_ob = filter(dNdS_ferunique, diet == "Obese" & inf_route == "Contact") %>% ungroup()
+t.test(dNdS_ln$dNdS_per_ferret, dNdS_ob$dNdS_per_ferret)
+
+ggplot(dNdS_ferunique, aes(y = dNdS_per_ferret, x = diet)) +
+  geom_boxplot(aes(fill = diet)) +
+  geom_violin(alpha = 0.5, aes(fill = diet)) +
+  facet_grid(~inf_route) +
+  DietcolScale_fill +
+  PlotTheme1
 ```
 
 SNV Location compared to stock
@@ -246,27 +266,46 @@ print(FerUniquePlot)
 ggsave(FerUniquePlot, file = "FerUniquePlot.pdf", path = savedir)
 ```
 
-Venn diagram of obese and lean de novo SNVs
+# Shared de novo SNVS
 ```{r}
-o_var = filter(ferunique, diet == "Obese") 
-o_var = unique(o_var$ntvar)
+ferunique$ntvar = paste0(ferunique$segment,"_",ferunique$major,ferunique$ntpos,ferunique$minor)
 
-l_var = filter(ferunique, diet == "Lean") 
-l_var = unique(l_var$ntvar)
+shared_vars = ferunique %>% 
+  group_by(ntvar,ferretID) %>% 
+  tally() %>%
+  group_by(ntvar) %>% # This is to prevent double counting variants within a same ferret but different dpi
+  tally() %>% filter(n > 1) %>% unique()
 
-diet_var <- list(Obese = o_var, Lean = l_var)
+# 100 variants that are shared between any ferrets
+shared_denovominors = unique(shared_vars$ntvar)
+df_allshared = filter(ferunique, ntvar %in% shared_denovominors)
 
-DietUniqueSNVS = ggVennDiagram(diet_var)
-print(DietUniqueSNVS)
-ggsave(DietUniqueSNVS, file = "DietUniqueSNVS.pdf", path = savedir)
 ```
 
 # Obese- and lean-specific SNVs
 ```{r}
-lean = ferunique %>% 
-  filter(ntvar %in% l_var) %>% 
+o_var = filter(df_allshared, diet == "Obese") 
+o_var = unique(o_var$ntvar)
+
+l_var = filter(df_allshared, diet == "Lean") 
+l_var = unique(l_var$ntvar)
+
+diet_var <- list(Obese = o_var, Lean = l_var)
+
+# Venn diagram of obese and lean de novo shared SNVs
+DietUniqueSNVS = ggVennDiagram(diet_var)
+print(DietUniqueSNVS)
+ggsave(DietUniqueSNVS, file = "DietUniqueSNVS.pdf", path = savedir)
+
+# 100 total - 67 shared between obese and lean, 20 obese specific, 13 lean specific 
+```
+
+```{r}
+lean = df_allshared %>%
+  filter(ntvar %in% l_var) %>%
   filter(!(ntvar %in% o_var)) %>% 
   unique()
+unique(lean$ntvar)
 
 lean$ferretID_var = paste0(lean$ferretID,"_",lean$ntvar)
 
@@ -276,13 +315,13 @@ repeats_lean = lean %>%
   group_by(ntvar) %>% # This is to prevent double counting variants within a same ferret but different dpi
   tally() %>% unique()
 
-
 lean = merge(lean, repeats_lean, by = c("ntvar")) %>% unique()
 
-obese = ferunique %>% 
+obese = df_allshared %>% 
   filter(ntvar %in% o_var) %>% 
   filter(!(ntvar %in% l_var)) %>%
   unique()
+unique(obese$ntvar)
 
 obese$ferretID_var = paste0(obese$ferretID,"_",obese$ntvar)
 
@@ -301,7 +340,6 @@ dietunique = select(dietunique, !(n))
 ```
 
 ```{r}
-# FIGURE THIS OUT
 #had to look up these positions manually
 MP_G459A = filter(dietunique, ntvar == "H9N2_MP_G459A") %>% unique()
 MP_G459A$nonsyn = "syn"
@@ -318,23 +356,6 @@ rest = filter(dietunique, !(ntvar %in% MPs)) %>% unique()
 dietunique = rbind(rest, MP_G459A,MP_T444C,MP_G339A)
 ```
 
-```{r}
-DietUnique = ggplot(filter(dietunique, ferret_num == 2, nonsyn == "nonsyn"), 
-                    aes(x = ntpos,
-                        y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
-  geom_point(aes(color = nonsyn, size = 2)) + 
-  geom_text(data = filter(dietunique, ferret_num == 2, nonsyn == "nonsyn"), aes(label = aavar, vjust = 2, hjust = 0.5)) +
-  ggtitle("Number of samples containing each variant - diet specific") +
-  facet_grid(diet~inf_route) +
-  ylab("Segment") +
-  xlab("Nucleotide Position") +
-  PlotTheme1
-print(DietUnique)
-ggsave(DietUnique, filename = "SegmentSNVPlot_DietUnqique.pdf", path = savedir, width = 10, height = 7)
-
-diet_snvs = filter(dietunique, ferret_num == 2) %>% select(ferretID, DPI, cohort, diet, ntvar, minorfreq) %>% unique()
-write.table(diet_snvs, "diet_snvs.csv",sep = ",", row.names = FALSE)
-```
 # AF and emergence of obese-specific variantss
 ```{r}
 # What is the AF distribution of obese-specific variants
@@ -395,6 +416,8 @@ dietunique_repeats = rbind(obese_wrep,lean_wrep) %>% unique()
 ```
 
 ```{r}
+meta_good = filter(meta, quality == "good") %>% select(sample, quality)
+dietunique_repeats_zeros = merge(dietunique_repeats, meta_good, all = TRUE) %>% unique()
 persistence = ggplot(filter(dietunique_repeats, nonsyn == "nonsyn" & fer_num == 2), aes(x = DPI, y = minorfreq)) +
   geom_point(aes(color = ntvar)) +
   geom_line(aes(group = ntvar)) +
@@ -437,68 +460,72 @@ ggplot(timing_bydiet, aes(x = DPI, y = day_ratio)) +
 
 # Determining if diet-unique shared variants are transmitted
 ```{r}
-dietunique = merge(dietunique, pairs, by = c("ferretID"))
+dietunique_pairs = merge(dietunique, pairs, by = c("ferretID"))
 
-shared = filter(dietunique, ferret_num == 2)
+shared = filter(dietunique_pairs, ferret_num > 1)
 t = unique(shared$ntvar)
 
 transmitted = data.frame()
 
 for(i in t){
   print(i)
-  df = filter(shared, ntvar == i)
-  df1 = group_by(df,pair_numbers) %>% tally()
+  df = filter(shared, ntvar == i) 
+  df1 = df %>% 
+  group_by(ntvar,ferretID,pair_numbers) %>% tally() %>% #this is to avoid double counting variants present at multiple DPI in same ferret
+  group_by(pair_numbers) %>% tally()
   # here a 2 means that the two ferrets are in the same transmission pair and a 1 indicates different transmission pairs
   df2 = merge(df, df1, by = c("pair_numbers"))
   # add this information back into the dataframe
-  df2$transmission = df2$n.y
+  df2$transmission = df2$n
   transmitted = rbind(transmitted, df2)
 }
 
 #formatting stuff
-notshared = filter(dietunique, ferret_num == 1)
-notshared$transmission = 0
-
-transmitted$transmission = transmitted$n
+transmitted$transmission = as.character(transmitted$n)
 transmitted = transmitted %>% select(!(n))
-
-dietunique = rbind(notshared, transmitted)
-dietunique$transmission = as.character(dietunique$transmission)
 ```
 
+# Removing possible transmissions since they would not be considered recurrent 
 ```{r}
-# make new version of this figure, separating out transmission v independent ferrets
-DietUnique_Transmission = ggplot(filter(dietunique, ferret_num > 1, nonsyn != "syn"), 
-                             aes(x = ntpos, 
-                                 y = factor(segment, levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
-  geom_point(aes(color = transmission, size = 2, shape = transmission)) + 
-  ggtitle("Number of samples containing each variant - diet specific") +
+recurrent = filter(transmitted, transmission == "1")
+select(recurrent, ntvar, diet) %>% unique() %>% count(diet)
+recurrent_dNdS = group_by(recurrent, diet, nonsyn) %>% tally() %>% 
+  pivot_wider(names_from = nonsyn, values_from = n) %>%
+  mutate(dNdS = nonsyn/syn)
+
+DietUnique_Recurrent = ggplot(recurrent, 
+                              aes(x = ntpos, 
+                                  y = factor(segment, 
+                                             levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
+  geom_point(aes(color = nonsyn, size = 2)) + 
+  geom_text(data = filter(recurrent, ferret_num == 2, nonsyn == "nonsyn"), aes(label = aavar, vjust = 2, hjust = 0.5)) +
   xlab("Nucleotide position") +
   ylab("Segment") +
-  facet_grid(diet~inf_route) +
+  facet_grid(~diet) +
   PlotTheme1
-print(DietUnique_Transmission)
-ggsave(DietUnique_Transmission, file = "DietUnique_Transmission.pdf", width = 7, height = 5, path = savedir)
+print(DietUnique_Recurrent)
+ggsave(DietUnique_Recurrent, file = "DietUnique_Recurrent.pdf", width = 10, height = 5, path = savedir)
 ```
-
-# Pulling out repeated nonsynonymous mutations
+# Looking at transmitted minor vars
 ```{r}
-nonsyns = filter(dietunique, nonsyn == "nonsyn" & ferret_num > 1) %>% ungroup() %>% unique() %>% droplevels() 
-nonsyns_smol = select(nonsyns,ntvar,aavar,diet,inf_route,transmission) %>% droplevels()
-write.csv(nonsyns_smol, "nonsyns.csv")
+trans_var = filter(transmitted, transmission == "2")
+select(trans_var, ntvar, diet) %>% unique() %>% count(diet)
 
-nonsyns_dietunique = filter(dietunique, nonsyn == "nonsyn" & transmission > 1) %>% 
-  ungroup() %>% 
-  select(diet,ntvar,aavar,transmission) %>%
-  unique() %>%
-  arrange(desc(transmission))
-
-write.table(nonsyns_dietunique, "nonsyns_dietunique.csv", sep = ",", row.names = FALSE)
+transmitted_denovo_minors = ggplot(trans_var,aes(x = ntpos,y = factor(segment, 
+                                             levels = c('H9N2_NS','H9N2_MP','H9N2_NA','H9N2_NP','H9N2_HA','H9N2_PA','H9N2_PB1','H9N2_PB2')))) +
+  geom_point(aes(color = nonsyn, size = 2)) + 
+  geom_text(data = filter(trans_var, ferret_num == 2), aes(label = aavar, vjust = 2, hjust = 0.5)) +
+  xlab("Nucleotide position") +
+  ylab("Segment") +
+  facet_grid(pair_numbers+pair_diets~inf_route) +
+  PlotTheme2
+print(transmitted_denovo_minors)
+ggsave(transmitted_denovo_minors, file = "DietUnique_Transmitted.pdf",  width = 7, height = 5, path = savedir)
 ```
 
 # SNVs shared between diet groups
 ```{r}
-shared = ferunique %>% 
+shared = df_allshared %>% 
   filter(ntvar %in% o_var) %>% 
   filter(ntvar %in% l_var) %>% 
   unique()
@@ -537,9 +564,19 @@ nonsyns_shared = filter(shared, nonsyn == "nonsyn" & n > 1) %>%
 write.table(nonsyns_shared, "nonsyns_shared.csv", sep = ",", row.names = FALSE)
 ```
 
+# Are there differences in AF between diet-specific and non-diet-specific shared vars?
+```{r}
+ggplot(shared, aes(x = minorfreq)) +
+  geom_histogram()
+ggplot(transmitted, aes(x = minorfreq)) +
+  geom_histogram()
+
+t.test(shared$minorfreq, transmitted$minorfreq)
+```
+
 # Are there differences in allele freq within the shared variants?
 ```{r}
-ggplot(nonsyns_shared, aes(x = minorfreq)) +
+ggplot(shared, aes(x = minorfreq)) +
   geom_density(aes(group = factor(n, levels = c("2","3","4","5","6","7","8","9","10","22")), 
                      fill = factor(n, levels = c("2","3","4","5","6","7","8","9","10","22")),
                    alpha = 0.2))
@@ -547,8 +584,8 @@ ggplot(nonsyns_shared, aes(x = minorfreq)) +
 select(nonsyns_shared, !minorfreq) %>% unique() %>% ggplot(., aes(x = n)) + geom_histogram(binwidth = 1)
 # determining cutoffs for high and low shared
 
-low_shared = filter(nonsyns_shared, n < 5) %>% unique() %>% mutate(cat = "low")
-high_shared = filter(nonsyns_shared, n > 5) %>% unique() %>% mutate(cat = "high")
+low_shared = filter(shared, n < 5) %>% unique() %>% mutate(cat = "low")
+high_shared = filter(shared, n > 5) %>% unique() %>% mutate(cat = "high")
 all_shared = rbind(low_shared, high_shared)
 
 ggplot(low_shared, aes(x = minorfreq)) +
@@ -562,6 +599,7 @@ ggplot(all_shared, aes(x = minorfreq)) +
 
 t.test(low_shared$minorfreq, high_shared$minorfreq)
 ```
+
 # Are there differences in AF between shared and non shared variants?
 ```{r}
 oneferret = select(ferunique,ntvar, minorfreq, sample) %>% unique() %>% count(ntvar) %>% filter(n == 1) 
@@ -575,7 +613,9 @@ ggplot(non_share, aes(x = minorfreq)) +
   geom_histogram(binwidth = 0.01)
 all_shared$cat = "shared"
 
-try_all = rbind(all_shared, non_share) %>% unique()
+all_shared_sub = select(all_shared, ntvar, aavar, minorfreq, n, cat)
+
+try_all = rbind(all_shared_sub, non_share) %>% unique()
 
 ggplot(try_all, aes(x = minorfreq)) +
   geom_density(aes(group = cat, fill = cat), alpha = 0.4)
@@ -601,8 +641,18 @@ ggplot(try_all, aes(y = minorfreq, x = cat, color = cat)) +
 t.test(non_share$minorfreq, all_shared$minorfreq)
 ```
 
-# Is there a difference in how often these variants are found in obese v lean ferrets?
+# Is there a difference in freq or abundance between obese v lean ferrets of the 67 non-diet-specific shared vars?
 ```{r}
+# Frequency
+ggplot(shared, aes(x = diet, y = minorfreq)) +
+  geom_boxplot(aes(color = diet)) +
+  DietcolScale +
+  PlotTheme2
+shared_ln = filter(shared, diet == "Lean")
+shared_ob = filter(shared, diet == "Obese")
+t.test(shared_ln$minorfreq,shared_ob$minorfreq)
+
+# Abundance
 shared_vars = group_by(shared, ntvar, diet) %>% tally() 
 
 ggplot(shared_vars, aes(x = ntvar, y = n, fill = diet)) +
@@ -625,8 +675,7 @@ PlotTheme1 +
 DietcolScale_fill
 ```
 
-
-Is there a difference in AF of the variants found in obese and lean ferrets?
+#Is there a difference in AF of the variants found in obese and lean ferrets?
 ```{r}
 ggplot(shared, aes(x = minorfreq, fill = diet)) +
   geom_histogram(binwidth = 0.01) +
@@ -634,8 +683,8 @@ ggplot(shared, aes(x = minorfreq, fill = diet)) +
   facet_grid(inf_route~diet) +
   DietcolScale_fill
 
-o = filter(ferunique, inf_route == "Index" & diet == "Obese")
-l = filter(ferunique, inf_route == "Index" & diet == "Lean")
+o = filter(shared, inf_route == "Index" & diet == "Obese")
+l = filter(shared, inf_route == "Index" & diet == "Lean")
 t.test(o$minorfreq, l$minorfreq)
 #not significantly different
 ```

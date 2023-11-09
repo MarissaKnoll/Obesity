@@ -289,11 +289,37 @@ efit2 = merge(efit2, meta, by.x = c('name'), by.y = c('sample'))
 
 interesting = c("1414_d06")
   
+euc_dist = unique(efit2) %>% 
+  ggplot(.) +
+  geom_point(aes(x=V1, y= V2,shape = inf_route, color =cohort), size = 2) +
+  geom_text(data = efit2, aes(x=V1, y= V2,label = name), hjust=1, vjust=1) +
+  PlotTheme2
+print(euc_dist)
+ggsave(euc_dist, file = "Euclidean_AllSamps.pdf", width = 7, height = 5, path = savedir)
+```
+
+```{r}
+####
+#Looking at each inf_route separately
+####
+
 ggplot() +
-  geom_point(data = efit2, aes(x=V1, y= V2,shape = diet, color =cohort), size = 2) +
-  #geom_text(data = efit2 %>% filter(name %in% interesting), aes(x=V1, y= V2,label = name), hjust=0, vjust=0, angle=45) +
-  #facet_grid(~DPI) +
-  PlotTheme1
+    geom_point(data = filter(efit2, inf_route == "Control"), aes(x=V1, y= V2,shape = diet, color =cohort), size = 2) +
+    #geom_text(data = efit2 %>% filter(name %in% interesting), aes(x=V1, y= V2,label = name), hjust=0, vjust=0, angle=45) +
+    PlotTheme1 +
+  ggtitle("Stock only")
+
+ggplot() +
+    geom_point(data = filter(efit2, inf_route == "Index"), aes(x=V1, y= V2,shape = diet, color =cohort), size = 2) +
+    #geom_text(data = efit2 %>% filter(name %in% interesting), aes(x=V1, y= V2,label = name), hjust=0, vjust=0, angle=45) +
+    PlotTheme1 +
+  ggtitle("Index only")
+
+ggplot() +
+    geom_point(data = filter(efit2, inf_route == "Contact"), aes(x=V1, y= V2,shape = diet, color =cohort), size = 2) +
+    #geom_text(data = efit2 %>% filter(name %in% interesting), aes(x=V1, y= V2,label = name), hjust=0, vjust=0, angle=45) +
+    PlotTheme1 +
+  ggtitle("Contact only")
 ```
 
 END OF KATE 03/03 CODE
@@ -368,6 +394,12 @@ L2_stock_index = ggplot(filter(euc_long, inf_route.x == "Control" &
   DietcolScale
 print(L2_stock_index)
 ggsave("L2_stock_index.pdf",L2_stock_index,path = savedir)
+
+euc_long_move = filter(euc_long, inf_route.x == "Control" & 
+                                 inf_route.y == "Index" &
+                                 cohort.x == cohort.y &
+                                 DPI.y %in% c("d02","d04","d06"))
+write.csv(euc_long_move, "L2_norm_distances.csv", row.names = FALSE)
 ```
 
 ```{r}
